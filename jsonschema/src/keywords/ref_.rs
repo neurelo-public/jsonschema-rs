@@ -2,11 +2,12 @@ use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{error, ErrorIterator},
     keywords::CompilationResult,
+    output::BasicOutput,
     paths::{InstancePath, JSONPointer},
     primitive_type::PrimitiveType,
     resolver::Resolver,
     schema_node::SchemaNode,
-    validator::Validate,
+    validator::{PartialApplication, Validate},
     CompilationOptions, Draft, ValidationError,
 };
 use parking_lot::RwLock;
@@ -43,29 +44,45 @@ impl RefValidator {
             resolver: Arc::clone(&context.resolver),
         }))
     }
+
+    fn resolve_sub_nodes(&self) -> Result<(), ValidationError> {
+        if self.sub_nodes.read().is_none() {
+            match self.resolver.resolve_fragment(
+                self.config.draft(),
+                &self.reference,
+                &self.original_reference,
+            ) {
+                Ok((scope, resolved)) => {
+                    let context = CompilationContext::new(
+                        scope.into(),
+                        Arc::clone(&self.config),
+                        Arc::clone(&self.resolver),
+                    );
+                    match compile_validators(&resolved, &context) {
+                        Ok(node) => {
+                            *self.sub_nodes.write() = Some(node);
+                        }
+                        Err(err) => return Err(err.into_owned()),
+                    }
+                }
+                Err(err) => return Err(err.into_owned()),
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl Validate for RefValidator {
     fn is_valid(&self, instance: &Value) -> bool {
+        if let Err(_) = self.resolve_sub_nodes() {
+            return false;
+        }
+
         if let Some(sub_nodes) = self.sub_nodes.read().as_ref() {
             return sub_nodes.is_valid(instance);
         }
-        if let Ok((scope, resolved)) = self.resolver.resolve_fragment(
-            self.config.draft(),
-            &self.reference,
-            &self.original_reference,
-        ) {
-            let context = CompilationContext::new(
-                scope.into(),
-                Arc::clone(&self.config),
-                Arc::clone(&self.resolver),
-            );
-            if let Ok(node) = compile_validators(&resolved, &context) {
-                let result = node.is_valid(instance);
-                *self.sub_nodes.write() = Some(node);
-                return result;
-            }
-        };
+
         false
     }
 
@@ -74,6 +91,10 @@ impl Validate for RefValidator {
         instance: &'instance Value,
         instance_path: &InstancePath,
     ) -> ErrorIterator<'instance> {
+        if let Err(err) = self.resolve_sub_nodes() {
+            return error(err.into_owned());
+        }
+
         if let Some(node) = self.sub_nodes.read().as_ref() {
             return Box::new(
                 node.validate(instance, instance_path)
@@ -81,38 +102,34 @@ impl Validate for RefValidator {
                     .into_iter(),
             );
         }
-        match self.resolver.resolve_fragment(
-            self.config.draft(),
-            &self.reference,
-            &self.original_reference,
-        ) {
-            Ok((scope, resolved)) => {
-                let context = CompilationContext::new(
-                    scope.into(),
-                    Arc::clone(&self.config),
-                    Arc::clone(&self.resolver),
-                );
-                match compile_validators(&resolved, &context) {
-                    Ok(node) => {
-                        let result = Box::new(
-                            node.err_iter(instance, instance_path)
-                                .map(move |mut error| {
-                                    let schema_path = self.schema_path.clone();
-                                    error.schema_path =
-                                        schema_path.extend_with(error.schema_path.as_slice());
-                                    error
-                                })
-                                .collect::<Vec<_>>()
-                                .into_iter(),
-                        );
-                        *self.sub_nodes.write() = Some(node);
-                        result
-                    }
-                    Err(err) => error(err.into_owned()),
-                }
-            }
-            Err(err) => error(err.into_owned()),
+
+        error(ValidationError::invalid_reference(
+            self.reference.to_string(),
+        ))
+    }
+
+    fn apply<'a>(
+        &'a self,
+        instance: &Value,
+        instance_path: &InstancePath,
+    ) -> PartialApplication<'a> {
+        if let Err(err) = self.resolve_sub_nodes() {
+            return PartialApplication::invalid_empty(vec![err.into()]);
         }
+
+        if let Some(node) = self.sub_nodes.read().as_ref() {
+            // Only BasicOutput::Invalid can be handled here because BasicOutput::Valid depends on the lifetime of the SchemaNode
+            // it was generated from. Given that the SchemaNode comes from a RwLock that sets its lifetime, it cannot guarantee
+            // it will live enough for BasicOutput::Valid to be used as the returned value
+            if let BasicOutput::Invalid(x) = node.apply_rooted(instance, instance_path) {
+                return BasicOutput::Invalid(x).into();
+            }
+
+            // Generate an empty instance to circumvent the lifetime issue described above
+            return PartialApplication::valid_empty();
+        }
+
+        PartialApplication::invalid_empty(vec!["Failed resolve reference".into()])
     }
 }
 
