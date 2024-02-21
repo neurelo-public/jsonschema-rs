@@ -122,6 +122,8 @@ pub enum ValidationErrorKind {
     MultipleOf { multiple_of: f64 },
     /// Negated schema failed validation.
     Not { schema: Value },
+    /// Nullable schema failed validation.
+    Nullable { nullable: bool },
     /// The given schema is valid under more than one of the schemas listed in the 'oneOf' keyword.
     OneOfMultipleValid,
     /// The given schema is not valid under any of the schemas listed in the 'oneOf' keyword.
@@ -589,6 +591,19 @@ impl<'a> ValidationError<'a> {
             schema_path,
         }
     }
+    pub(crate) const fn nullable(
+        schema_path: JSONPointer,
+        instance_path: JSONPointer,
+        instance: &'a Value,
+        nullable: bool,
+    ) -> ValidationError<'a> {
+        ValidationError {
+            instance_path,
+            instance: Cow::Borrowed(instance),
+            kind: ValidationErrorKind::Nullable { nullable },
+            schema_path,
+        }
+    }
     pub(crate) const fn one_of_multiple_valid(
         schema_path: JSONPointer,
         instance_path: JSONPointer,
@@ -941,6 +956,9 @@ impl fmt::Display for ValidationError<'_> {
             ),
             ValidationErrorKind::Not { schema } => {
                 write!(f, "{} is not allowed for {}", schema, self.instance)
+            }
+            ValidationErrorKind::Nullable { nullable } => {
+                write!(f, "{} does not match nullable: {}", self.instance, nullable)
             }
             ValidationErrorKind::OneOfMultipleValid => write!(
                 f,

@@ -29,6 +29,7 @@ name = "jsonschema"
 [features]
 cli = ["clap"]
 default = ["resolve-http", "resolve-file", "cli"]
+nullable = []
 draft201909 = []
 draft202012 = []
 

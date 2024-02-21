@@ -25,6 +25,7 @@ pub(crate) mod min_properties;
 pub(crate) mod minimum;
 pub(crate) mod multiple_of;
 pub(crate) mod not;
+pub(crate) mod nullable;
 pub(crate) mod one_of;
 pub(crate) mod pattern;
 pub(crate) mod pattern_properties;

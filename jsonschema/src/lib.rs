@@ -160,6 +160,12 @@ pub(crate) mod tests_util {
         is_not_valid_inner(&compiled, instance)
     }
 
+    #[cfg(any(feature = "nullable"))]
+    pub(crate) fn is_not_valid_with_nullable(schema: &Value, instance: &Value) {
+        let compiled = JSONSchema::compile(schema).unwrap();
+        is_not_valid_inner(&compiled, instance)
+    }
+
     pub(crate) fn expect_errors(schema: &Value, instance: &Value, errors: &[&str]) {
         assert_eq!(
             JSONSchema::compile(schema)
@@ -201,6 +207,12 @@ pub(crate) mod tests_util {
             .with_draft(draft)
             .compile(schema)
             .unwrap();
+        is_valid_inner(&compiled, instance)
+    }
+
+    #[cfg(any(feature = "nullable"))]
+    pub(crate) fn is_valid_with_nullable(schema: &Value, instance: &Value) {
+        let compiled = JSONSchema::options().compile(schema).unwrap();
         is_valid_inner(&compiled, instance)
     }
 

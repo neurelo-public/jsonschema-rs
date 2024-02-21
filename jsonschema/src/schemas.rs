@@ -145,6 +145,8 @@ impl Draft {
             "minProperties" => Some(keywords::min_properties::compile),
             "multipleOf" => Some(keywords::multiple_of::compile),
             "not" => Some(keywords::not::compile),
+            #[cfg(feature = "nullable")]
+            "nullable" => Some(keywords::nullable::compile),
             "oneOf" => Some(keywords::one_of::compile),
             "pattern" => Some(keywords::pattern::compile),
             "patternProperties" => Some(keywords::pattern_properties::compile),
