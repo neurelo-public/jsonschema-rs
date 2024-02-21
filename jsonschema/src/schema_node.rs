@@ -220,8 +220,42 @@ impl SchemaNode {
     {
         let mut success_results: VecDeque<OutputUnit<Annotations>> = VecDeque::new();
         let mut error_results = VecDeque::new();
+        let path_and_validators = path_and_validators.map(|(p, v)| (p.into(), v));
+
+        #[cfg(feature = "nullable")]
+        let (nullable, path_and_validators): (Vec<_>, Vec<_>) = path_and_validators.partition(
+            |(p, _)| matches!(p, crate::paths::PathChunk::Property(v) if v.as_ref() == "nullable"),
+        );
+        #[cfg(feature = "nullable")]
+        for (path, validator) in nullable {
+            let path = self.relative_path.extend_with(&[path]);
+            let absolute_path = self
+                .absolute_path
+                .clone()
+                .map(|p| p.with_path(path.to_string().as_str()));
+            match validator.apply(instance, instance_path) {
+                PartialApplication::Valid { .. } => {
+                    return PartialApplication::valid_empty();
+                }
+                PartialApplication::Invalid {
+                    errors: these_errors,
+                    child_results,
+                } => {
+                    error_results.extend(child_results);
+                    error_results.extend(these_errors.into_iter().map(|error| {
+                        OutputUnit::<ErrorDescription>::error(
+                            path.clone(),
+                            instance_path.into(),
+                            absolute_path.clone(),
+                            error,
+                        )
+                    }));
+                }
+            }
+        }
+
         for (path, validator) in path_and_validators {
-            let path = self.relative_path.extend_with(&[path.into()]);
+            let path = self.relative_path.extend_with(&[path]);
             let absolute_path = self
                 .absolute_path
                 .clone()
@@ -231,15 +265,6 @@ impl SchemaNode {
                     annotations,
                     child_results,
                 } => {
-                    #[cfg(any(feature = "nullable"))]
-                    {
-                        // Short-circuit the thing if `nullable` keyword and it is valid
-                        let should_return = matches!(path.last(), Some(crate::paths::PathChunk::Keyword(v)) if *v == "nullable");
-                        if should_return {
-                            return PartialApplication::valid_empty();
-                        }
-                    }
-
                     if let Some(annotations) = annotations {
                         success_results.push_front(OutputUnit::<Annotations<'a>>::annotations(
                             path,

@@ -9,7 +9,6 @@ use crate::{
 use serde_json::{Map, Value};
 
 pub(crate) struct NullableValidator {
-    nullable: bool,
     schema_path: JSONPointer,
 }
 
@@ -19,25 +18,33 @@ impl NullableValidator {
         schema: &'a Value,
         context: &CompilationContext,
     ) -> CompilationResult<'a> {
-        if let Some(nullable) = schema.as_bool() {
-            Ok(Box::new(NullableValidator {
-                nullable,
-                schema_path: context.as_pointer_with("nullable"),
-            }))
-        } else {
-            Err(ValidationError::single_type_error(
+        let Some(nullable) = schema.as_bool() else {
+            return Err(ValidationError::single_type_error(
                 JSONPointer::default(),
                 context.clone().into_pointer(),
                 schema,
                 PrimitiveType::Boolean,
-            ))
+            ));
+        };
+
+        if !nullable {
+            return Err(ValidationError::constant_boolean(
+                JSONPointer::default(),
+                context.clone().into_pointer(),
+                schema,
+                true,
+            ));
         }
+
+        Ok(Box::new(NullableValidator {
+            schema_path: context.as_pointer_with("nullable"),
+        }))
     }
 }
 
 impl Validate for NullableValidator {
     fn is_valid(&self, instance: &Value) -> bool {
-        (self.nullable && instance.is_null()) || (!self.nullable && !instance.is_null())
+        instance.is_null()
     }
 
     fn validate<'instance>(
@@ -52,7 +59,6 @@ impl Validate for NullableValidator {
                 self.schema_path.clone(),
                 instance_path.into(),
                 instance,
-                self.nullable,
             ))
         }
     }
@@ -60,7 +66,7 @@ impl Validate for NullableValidator {
 
 impl core::fmt::Display for NullableValidator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "nullable: {}", self.nullable)
+        write!(f, "nullable: true")
     }
 }
 
@@ -81,13 +87,11 @@ mod tests {
 
     #[test]
     fn test_valid() {
-        tests_util::is_valid_with_nullable(&json!({"nullable": false}), &json!(1));
         tests_util::is_valid_with_nullable(&json!({"nullable": true}), &json!(null));
     }
 
     #[test]
     fn test_invalid() {
-        tests_util::is_not_valid_with_nullable(&json!({"nullable": false}), &json!(null));
         tests_util::is_not_valid_with_nullable(&json!({"nullable": true}), &json!(1));
     }
 }

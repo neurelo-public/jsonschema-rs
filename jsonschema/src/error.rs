@@ -123,7 +123,7 @@ pub enum ValidationErrorKind {
     /// Negated schema failed validation.
     Not { schema: Value },
     /// Nullable schema failed validation.
-    Nullable { nullable: bool },
+    Nullable,
     /// The given schema is valid under more than one of the schemas listed in the 'oneOf' keyword.
     OneOfMultipleValid,
     /// The given schema is not valid under any of the schemas listed in the 'oneOf' keyword.
@@ -595,12 +595,11 @@ impl<'a> ValidationError<'a> {
         schema_path: JSONPointer,
         instance_path: JSONPointer,
         instance: &'a Value,
-        nullable: bool,
     ) -> ValidationError<'a> {
         ValidationError {
             instance_path,
             instance: Cow::Borrowed(instance),
-            kind: ValidationErrorKind::Nullable { nullable },
+            kind: ValidationErrorKind::Nullable,
             schema_path,
         }
     }
@@ -957,8 +956,8 @@ impl fmt::Display for ValidationError<'_> {
             ValidationErrorKind::Not { schema } => {
                 write!(f, "{} is not allowed for {}", schema, self.instance)
             }
-            ValidationErrorKind::Nullable { nullable } => {
-                write!(f, "{} does not match nullable: {}", self.instance, nullable)
+            ValidationErrorKind::Nullable => {
+                write!(f, "{} is not of type \"null\"", self.instance)
             }
             ValidationErrorKind::OneOfMultipleValid => write!(
                 f,
