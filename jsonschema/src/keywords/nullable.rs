@@ -37,7 +37,7 @@ impl NullableValidator {
 
 impl Validate for NullableValidator {
     fn is_valid(&self, instance: &Value) -> bool {
-        self.nullable && instance.is_null()
+        (self.nullable && instance.is_null()) || (!self.nullable && !instance.is_null())
     }
 
     fn validate<'instance>(
@@ -73,20 +73,21 @@ pub(crate) fn compile<'a>(
     Some(NullableValidator::compile(schema, context))
 }
 
+#[cfg(feature = "nullable")]
 #[cfg(test)]
 mod tests {
     use crate::tests_util;
     use serde_json::json;
 
-    #[cfg(feature = "nullable")]
     #[test]
     fn test_valid() {
-        tests_util::is_valid_with_nullable(&json!({"nullable": true}), &json!(null))
+        tests_util::is_valid_with_nullable(&json!({"nullable": false}), &json!(1));
+        tests_util::is_valid_with_nullable(&json!({"nullable": true}), &json!(null));
     }
 
-    #[cfg(feature = "nullable")]
     #[test]
     fn test_invalid() {
-        tests_util::is_not_valid_with_nullable(&json!({"nullable": false}), &json!(null))
+        tests_util::is_not_valid_with_nullable(&json!({"nullable": false}), &json!(null));
+        tests_util::is_not_valid_with_nullable(&json!({"nullable": true}), &json!(1));
     }
 }
