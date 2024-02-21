@@ -231,6 +231,15 @@ impl SchemaNode {
                     annotations,
                     child_results,
                 } => {
+                    #[cfg(any(feature = "nullable"))]
+                    {
+                        // Short-circuit the thing if `nullable` keyword and it is valid
+                        let should_return = matches!(path.last(), Some(crate::paths::PathChunk::Keyword(v)) if *v == "nullable");
+                        if should_return {
+                            return PartialApplication::valid_empty();
+                        }
+                    }
+
                     if let Some(annotations) = annotations {
                         success_results.push_front(OutputUnit::<Annotations<'a>>::annotations(
                             path,
