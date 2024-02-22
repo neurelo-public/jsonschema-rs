@@ -203,6 +203,33 @@ impl SchemaNode {
         }
     }
 
+    fn validate_subschemas<'a, I, P>(
+        &self,
+        instance: &serde_json::Value,
+        path_and_validators: I,
+    ) -> bool
+    where
+        I: Iterator<Item = (P, &'a Box<dyn Validate + Send + Sync + 'a>)> + 'a,
+        P: Into<crate::paths::PathChunk> + std::fmt::Display,
+    {
+        let path_and_validators: Vec<_> = path_and_validators.map(|(p, v)| (p.into(), v)).collect();
+
+        #[cfg(feature = "nullable")]
+        let (nullable, path_and_validators): (Vec<_>, Vec<_>) = path_and_validators.into_iter().partition(
+            |(p, _)| matches!(p, crate::paths::PathChunk::Property(v) if v.as_ref() == "nullable"),
+        );
+        #[cfg(feature = "nullable")]
+        for (_, validator) in nullable {
+            if validator.is_valid(instance) {
+                return true;
+            }
+        }
+
+        path_and_validators
+            .into_iter()
+            .all(|(_, v)| v.is_valid(instance))
+    }
+
     /// Helper function to apply an iterator of `(Into<PathChunk>, Validate)` to a value. This is
     /// useful as a keyword schemanode has a set of validators keyed by their keywords, so the
     /// `Into<Pathchunk>` is a `String` whereas an array schemanode has an array of validators so
@@ -226,6 +253,10 @@ impl SchemaNode {
         let (nullable, path_and_validators): (Vec<_>, Vec<_>) = path_and_validators.partition(
             |(p, _)| matches!(p, crate::paths::PathChunk::Property(v) if v.as_ref() == "nullable"),
         );
+
+        #[cfg(feature = "nullable")]
+        let mut nullable_error_results = VecDeque::new();
+
         #[cfg(feature = "nullable")]
         for (path, validator) in nullable {
             let path = self.relative_path.extend_with(&[path]);
@@ -241,8 +272,8 @@ impl SchemaNode {
                     errors: these_errors,
                     child_results,
                 } => {
-                    error_results.extend(child_results);
-                    error_results.extend(these_errors.into_iter().map(|error| {
+                    nullable_error_results.extend(child_results);
+                    nullable_error_results.extend(these_errors.into_iter().map(|error| {
                         OutputUnit::<ErrorDescription>::error(
                             path.clone(),
                             instance_path.into(),
@@ -291,12 +322,15 @@ impl SchemaNode {
                 }
             }
         }
+
         if error_results.is_empty() {
             PartialApplication::Valid {
                 annotations,
                 child_results: success_results,
             }
         } else {
+            #[cfg(feature = "nullable")]
+            error_results.append(&mut nullable_error_results);
             PartialApplication::Invalid {
                 errors: Vec::new(),
                 child_results: error_results,
@@ -329,9 +363,8 @@ impl Validate for SchemaNode {
             NodeValidators::Keyword(kvs) if kvs.validators.len() == 1 => {
                 kvs.validators[0].1.is_valid(instance)
             }
-            NodeValidators::Keyword(kvs) => {
-                kvs.validators.iter().all(|(_, v)| v.is_valid(instance))
-            }
+            NodeValidators::Keyword(kvs) => self
+                .validate_subschemas(instance, kvs.validators.iter().map(|(p, v)| (p.clone(), v))),
             NodeValidators::Array { validators } => validators.iter().all(|v| v.is_valid(instance)),
             NodeValidators::Boolean { validator: Some(_) } => false,
             NodeValidators::Boolean { validator: None } => true,
