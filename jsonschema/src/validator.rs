@@ -1,12 +1,12 @@
 use crate::{
     error::ErrorIterator,
     keywords::BoxedValidator,
-    output::{Annotations, ErrorDescription, OutputUnit},
-    paths::InstancePath,
+    output::{Annotations, ErrorDescription},
+    paths::{AbsolutePath, InstancePath, JSONPointer},
     schema_node::SchemaNode,
 };
 use serde_json::Value;
-use std::{collections::VecDeque, fmt};
+use std::{collections::VecDeque, fmt, iter::Sum, ops::AddAssign};
 
 /// The Validate trait represents a predicate over some JSON value. Some validators are very simple
 /// predicates such as "a value which is a string", whereas others may be much more complex,
@@ -23,11 +23,14 @@ use std::{collections::VecDeque, fmt};
 /// `is_valid`. `apply` is only necessary for validators which compose other validators. See the
 /// documentation for `apply` for more information.
 pub(crate) trait Validate: Send + Sync + core::fmt::Display {
+    fn get_location(&self, instance_path: &InstancePath) -> Location;
+
     fn validate<'instance>(
         &self,
         instance: &'instance Value,
         instance_path: &InstancePath,
     ) -> ErrorIterator<'instance>;
+
     // The same as above, but does not construct ErrorIterator.
     // It is faster for cases when the result is not needed (like anyOf), since errors are
     // not constructed
@@ -86,9 +89,35 @@ pub(crate) trait Validate: Send + Sync + core::fmt::Display {
             .map(ErrorDescription::from)
             .collect();
         if errors.is_empty() {
-            PartialApplication::valid_empty()
+            PartialApplication::valid_empty(self.get_location(instance_path))
         } else {
-            PartialApplication::invalid_empty(errors)
+            PartialApplication::invalid_empty(self.get_location(instance_path), errors)
+        }
+    }
+}
+
+/// Location that correlates a schema node to an instance node
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Location {
+    pub(crate) keyword_location: JSONPointer,
+    pub(crate) instance_location: JSONPointer,
+    pub(crate) absolute_keyword_location: Option<AbsolutePath>,
+}
+
+impl Location {
+    pub(crate) fn root() -> Self {
+        Self::new(JSONPointer::default(), JSONPointer::default(), None)
+    }
+
+    pub(crate) fn new(
+        keyword_location: JSONPointer,
+        instance_location: JSONPointer,
+        absolute_keyword_location: Option<AbsolutePath>,
+    ) -> Self {
+        Self {
+            keyword_location,
+            instance_location,
+            absolute_keyword_location,
         }
     }
 }
@@ -99,33 +128,64 @@ pub(crate) trait Validate: Send + Sync + core::fmt::Display {
 #[derive(Clone, PartialEq)]
 pub(crate) enum PartialApplication<'a> {
     Valid {
+        /// Location that produced this partial application
+        location: Location,
         /// Annotations produced by this validator
         annotations: Option<Annotations<'a>>,
         /// Any outputs produced by validators which are children of this validator
-        child_results: VecDeque<OutputUnit<Annotations<'a>>>,
+        child_results: VecDeque<PartialApplication<'a>>,
     },
     Invalid {
+        /// Location that produced this partial application
+        location: Location,
         /// Errors which caused this schema to be invalid
         errors: Vec<ErrorDescription>,
         /// Any error outputs produced by child validators of this validator
-        child_results: VecDeque<OutputUnit<ErrorDescription>>,
+        child_results: VecDeque<PartialApplication<'a>>,
+        /// Valid instances count to optimize error generation by picking best match
+        matches_count: usize,
     },
 }
 
 impl<'a> PartialApplication<'a> {
     /// Create an empty `PartialApplication` which is valid
-    pub(crate) fn valid_empty() -> PartialApplication<'static> {
+    pub(crate) fn valid(
+        location: Location,
+        annotations: Annotations<'a>,
+    ) -> PartialApplication<'a> {
         PartialApplication::Valid {
+            location,
+            annotations: Some(annotations),
+            child_results: VecDeque::new(),
+        }
+    }
+
+    /// Create an empty `PartialApplication` which is valid
+    pub(crate) fn valid_empty(location: Location) -> PartialApplication<'a> {
+        PartialApplication::Valid {
+            location,
             annotations: None,
             child_results: VecDeque::new(),
         }
     }
 
     /// Create an empty `PartialApplication` which is invalid
-    pub(crate) fn invalid_empty(errors: Vec<ErrorDescription>) -> PartialApplication<'static> {
+    pub(crate) fn invalid_empty(
+        location: Location,
+        errors: Vec<ErrorDescription>,
+    ) -> PartialApplication<'a> {
         PartialApplication::Invalid {
             errors,
+            location,
             child_results: VecDeque::new(),
+            matches_count: 0,
+        }
+    }
+
+    pub(crate) fn location(&self) -> &Location {
+        match self {
+            Self::Valid { location, .. } => location,
+            Self::Invalid { location, .. } => location,
         }
     }
 
@@ -155,11 +215,69 @@ impl<'a> PartialApplication<'a> {
             Self::Invalid { errors, .. } => errors.push(error),
             Self::Valid { .. } => {
                 *self = Self::Invalid {
+                    location: self.location().clone(),
                     errors: vec![error],
                     child_results: VecDeque::new(),
+                    matches_count: 1,
                 }
             }
         }
+    }
+}
+
+impl<'a> AddAssign for PartialApplication<'a> {
+    fn add_assign(&mut self, rhs: Self) {
+        match (&mut *self, rhs) {
+            (
+                PartialApplication::Valid { child_results, .. },
+                PartialApplication::Valid {
+                    child_results: child_results_rhs,
+                    ..
+                },
+            ) => {
+                child_results.extend(child_results_rhs);
+            }
+            (
+                PartialApplication::Valid { child_results, .. },
+                PartialApplication::Invalid {
+                    location: location_rhs,
+                    errors: errors_rhs,
+                    child_results: child_results_rhs,
+                    matches_count: matches_count_rhs,
+                },
+            ) => {
+                *self = PartialApplication::Invalid {
+                    location: location_rhs,
+                    errors: errors_rhs,
+                    child_results: child_results_rhs,
+                    matches_count: matches_count_rhs
+                        + child_results.iter().filter(|c| c.is_valid()).count(),
+                }
+            }
+            (
+                PartialApplication::Invalid { matches_count, .. },
+                PartialApplication::Valid { child_results, .. },
+            ) => {
+                *matches_count += child_results.iter().filter(|c| c.is_valid()).count();
+            }
+            (
+                PartialApplication::Invalid { errors, .. },
+                PartialApplication::Invalid {
+                    errors: errors_rhs, ..
+                },
+            ) => {
+                errors.extend(errors_rhs);
+            }
+        }
+    }
+}
+
+impl<'a> Sum for PartialApplication<'a> {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Self::valid_empty(Location::root()), |mut acc, elem| {
+            acc += elem;
+            acc
+        })
     }
 }
 
@@ -212,4 +330,34 @@ pub(crate) fn format_key_value_validators(validators: &[(String, SchemaNode)]) -
         .map(|(name, node)| format!("{}: {}", name, format_validators(node.validators())))
         .collect::<Vec<String>>()
         .join(", ")
+}
+
+/// Get the node location from the schema path
+#[macro_export]
+macro_rules! get_location_from_path {
+    () => {
+        fn get_location(&self, instance_path: &InstancePath) -> Location {
+            Location::new(self.schema_path.clone(), instance_path.into(), None)
+        }
+    };
+}
+
+/// Get the node location from the node
+#[macro_export]
+macro_rules! get_location_from_node {
+    () => {
+        fn get_location(&self, instance_path: &InstancePath) -> Location {
+            self.node.get_location(instance_path)
+        }
+    };
+}
+
+/// Get the node location from the schema node
+#[macro_export]
+macro_rules! get_location_from_schema {
+    () => {
+        fn get_location(&self, instance_path: &InstancePath) -> Location {
+            self.schema.get_location(instance_path)
+        }
+    };
 }

@@ -1,16 +1,17 @@
 use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::CompilationResult,
-    output::BasicOutput,
     paths::{InstancePath, JSONPointer},
     primitive_type::PrimitiveType,
     schema_node::SchemaNode,
-    validator::{format_key_value_validators, PartialApplication, Validate},
+    validator::{format_key_value_validators, Location, PartialApplication, Validate},
 };
 use serde_json::{Map, Value};
 
 pub(crate) struct PropertiesValidator {
+    schema_path: JSONPointer,
     pub(crate) properties: Vec<(String, SchemaNode)>,
 }
 
@@ -31,7 +32,10 @@ impl PropertiesValidator {
                         compile_validators(subschema, &property_context)?,
                     ));
                 }
-                Ok(Box::new(PropertiesValidator { properties }))
+                Ok(Box::new(PropertiesValidator {
+                    schema_path: context.into_pointer(),
+                    properties,
+                }))
             }
             _ => Err(ValidationError::single_type_error(
                 JSONPointer::default(),
@@ -44,6 +48,8 @@ impl PropertiesValidator {
 }
 
 impl Validate for PropertiesValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(item) = instance {
             self.properties.iter().all(move |(name, node)| {
@@ -84,22 +90,21 @@ impl Validate for PropertiesValidator {
         instance: &Value,
         instance_path: &InstancePath,
     ) -> PartialApplication<'a> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
+
         if let Value::Object(props) = instance {
-            let mut result = BasicOutput::default();
             let mut matched_props = Vec::with_capacity(props.len());
             for (prop_name, node) in &self.properties {
                 if let Some(prop) = props.get(prop_name) {
                     let path = instance_path.push(prop_name.clone());
                     matched_props.push(prop_name.clone());
-                    result += node.apply_rooted(prop, &path);
+                    result += node.apply(prop, &path);
                 }
             }
-            let mut application: PartialApplication = result.into();
-            application.annotate(serde_json::Value::from(matched_props).into());
-            application
-        } else {
-            PartialApplication::valid_empty()
+            result.annotate(serde_json::Value::from(matched_props).into());
         }
+
+        result
     }
 }
 

@@ -1,12 +1,13 @@
 use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::CompilationResult,
     output::BasicOutput,
     paths::{InstancePath, JSONPointer},
     primitive_type::PrimitiveType,
     schema_node::SchemaNode,
-    validator::{format_iter_of_validators, PartialApplication, Validate},
+    validator::{format_iter_of_validators, Location, PartialApplication, Validate},
 };
 use serde_json::{Map, Value};
 
@@ -67,6 +68,8 @@ impl OneOfValidator {
 }
 
 impl Validate for OneOfValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         let first_valid_idx = self.get_first_valid(instance);
         first_valid_idx.map_or(false, |idx| !self.are_others_valid(instance, idx))
@@ -102,18 +105,24 @@ impl Validate for OneOfValidator {
         let mut failures = Vec::new();
         let mut successes = Vec::new();
         for node in &self.schemas {
-            match node.apply_rooted(instance, instance_path) {
-                output @ BasicOutput::Valid(..) => successes.push(output),
-                output @ BasicOutput::Invalid(..) => failures.push(output),
+            match node.apply(instance, instance_path) {
+                output @ PartialApplication::Valid { .. } => successes.push(output),
+                output @ PartialApplication::Invalid { .. } => failures.push(output),
             };
         }
+
         if successes.len() == 1 {
             let success = successes.remove(0);
-            success.into()
+            return success.into();
         } else if successes.len() > 1 {
-            PartialApplication::invalid_empty(vec!["more than one subschema succeeded".into()])
-        } else if !failures.is_empty() {
-            failures.into_iter().sum::<BasicOutput<'_>>().into()
+            return PartialApplication::invalid_empty(
+                self.get_location(instance_path),
+                vec!["more than one subschema succeeded".into()],
+            );
+        }
+
+        if !failures.is_empty() {
+            todo!();
         } else {
             unreachable!("compilation should fail for oneOf with no subschemas")
         }
@@ -137,6 +146,20 @@ pub(crate) fn compile<'a>(
     context: &CompilationContext,
 ) -> Option<CompilationResult<'a>> {
     Some(OneOfValidator::compile(schema, context))
+}
+
+fn find_best_match(mut outputs: Vec<BasicOutput<'_>>) -> BasicOutput<'_> {
+    let best_match = None;
+
+    outputs
+        .iter()
+        .filter_map(|v| match v {
+            BasicOutput::Valid(_) => None,
+            BasicOutput::Invalid(v) => Some(v),
+        })
+        .for_each(|v| {});
+
+    best_match.unwrap_or(outputs.remove(0))
 }
 
 #[cfg(test)]

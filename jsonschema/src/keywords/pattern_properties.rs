@@ -1,17 +1,18 @@
 use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{no_error, ErrorIterator, ValidationError},
+    get_location_from_node, get_location_from_path,
     keywords::CompilationResult,
-    output::BasicOutput,
     paths::{InstancePath, JSONPointer},
     primitive_type::PrimitiveType,
     schema_node::SchemaNode,
-    validator::{format_validators, PartialApplication, Validate},
+    validator::{format_validators, Location, PartialApplication, Validate},
 };
 use fancy_regex::Regex;
 use serde_json::{Map, Value};
 
 pub(crate) struct PatternPropertiesValidator {
+    schema_path: JSONPointer,
     patterns: Vec<(Regex, SchemaNode)>,
 }
 
@@ -40,11 +41,16 @@ impl PatternPropertiesValidator {
                 compile_validators(subschema, &pattern_context)?,
             ));
         }
-        Ok(Box::new(PatternPropertiesValidator { patterns }))
+        Ok(Box::new(PatternPropertiesValidator {
+            schema_path: keyword_context.into_pointer(),
+            patterns,
+        }))
     }
 }
 
 impl Validate for PatternPropertiesValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(item) = instance {
             self.patterns.iter().all(move |(re, node)| {
@@ -87,24 +93,23 @@ impl Validate for PatternPropertiesValidator {
         instance: &Value,
         instance_path: &InstancePath,
     ) -> PartialApplication<'a> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
+
         if let Value::Object(item) = instance {
             let mut matched_propnames = Vec::with_capacity(item.len());
-            let mut sub_results = BasicOutput::default();
             for (pattern, node) in &self.patterns {
                 for (key, value) in item {
                     if pattern.is_match(key).unwrap_or(false) {
                         let path = instance_path.push(key.clone());
                         matched_propnames.push(key.clone());
-                        sub_results += node.apply_rooted(value, &path);
+                        result += node.apply(value, &path);
                     }
                 }
             }
-            let mut result: PartialApplication = sub_results.into();
             result.annotate(serde_json::Value::from(matched_propnames).into());
-            result
-        } else {
-            PartialApplication::valid_empty()
         }
+
+        result
     }
 }
 
@@ -154,6 +159,8 @@ impl SingleValuePatternPropertiesValidator {
 }
 
 impl Validate for SingleValuePatternPropertiesValidator {
+    get_location_from_node!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(item) = instance {
             item.iter()
@@ -190,22 +197,21 @@ impl Validate for SingleValuePatternPropertiesValidator {
         instance: &Value,
         instance_path: &InstancePath,
     ) -> PartialApplication<'a> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
+
         if let Value::Object(item) = instance {
             let mut matched_propnames = Vec::with_capacity(item.len());
-            let mut outputs = BasicOutput::default();
             for (key, value) in item {
                 if self.pattern.is_match(key).unwrap_or(false) {
                     let path = instance_path.push(key.clone());
                     matched_propnames.push(key.clone());
-                    outputs += self.node.apply_rooted(value, &path);
+                    result += self.node.apply(value, &path);
                 }
             }
-            let mut result: PartialApplication = outputs.into();
             result.annotate(serde_json::Value::from(matched_propnames).into());
-            result
-        } else {
-            PartialApplication::valid_empty()
         }
+
+        result
     }
 }
 

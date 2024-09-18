@@ -1,10 +1,11 @@
 use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_node,
     keywords::CompilationResult,
     paths::{InstancePath, JSONPointer},
     schema_node::SchemaNode,
-    validator::{format_validators, PartialApplication, Validate},
+    validator::{format_validators, Location, PartialApplication, Validate},
     Draft,
 };
 use serde_json::{Map, Value};
@@ -32,6 +33,8 @@ impl ContainsValidator {
 }
 
 impl Validate for ContainsValidator {
+    get_location_from_node!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Array(items) = instance {
             items.iter().any(|i| self.node.is_valid(i))
@@ -69,13 +72,13 @@ impl Validate for ContainsValidator {
             let mut indices = Vec::new();
             for (idx, item) in items.iter().enumerate() {
                 let path = instance_path.push(idx);
-                let result = self.node.apply_rooted(item, &path);
+                let result = self.node.apply(item, &path);
                 if result.is_valid() {
                     indices.push(idx);
                     results.push(result);
                 }
             }
-            let mut result: PartialApplication = results.into_iter().collect();
+            let mut result: PartialApplication = results.into_iter().sum();
             if indices.is_empty() {
                 result.mark_errored(
                     ValidationError::contains(
@@ -90,7 +93,7 @@ impl Validate for ContainsValidator {
             }
             result
         } else {
-            let mut result = PartialApplication::valid_empty();
+            let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
             result.annotate(serde_json::Value::Array(Vec::new()).into());
             result
         }
@@ -129,6 +132,8 @@ impl MinContainsValidator {
 }
 
 impl Validate for MinContainsValidator {
+    get_location_from_node!();
+
     fn validate<'instance>(
         &self,
         instance: &'instance Value,
@@ -227,6 +232,8 @@ impl MaxContainsValidator {
 }
 
 impl Validate for MaxContainsValidator {
+    get_location_from_node!();
+
     fn validate<'instance>(
         &self,
         instance: &'instance Value,
@@ -335,6 +342,8 @@ impl MinMaxContainsValidator {
 }
 
 impl Validate for MinMaxContainsValidator {
+    get_location_from_node!();
+
     fn validate<'instance>(
         &self,
         instance: &'instance Value,

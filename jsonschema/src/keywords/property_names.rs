@@ -1,10 +1,11 @@
 use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_node, get_location_from_path,
     keywords::CompilationResult,
     paths::{InstancePath, JSONPointer},
     schema_node::SchemaNode,
-    validator::{format_validators, PartialApplication, Validate},
+    validator::{format_validators, Location, PartialApplication, Validate},
 };
 use serde_json::{Map, Value};
 
@@ -26,6 +27,8 @@ impl PropertyNamesObjectValidator {
 }
 
 impl Validate for PropertyNamesObjectValidator {
+    get_location_from_node!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(item) = &instance {
             item.keys().all(move |key| {
@@ -78,11 +81,11 @@ impl Validate for PropertyNamesObjectValidator {
             item.keys()
                 .map(|key| {
                     let wrapper = Value::String(key.to_string());
-                    self.node.apply_rooted(&wrapper, instance_path)
+                    self.node.apply(&wrapper, instance_path)
                 })
-                .collect()
+                .sum()
         } else {
-            PartialApplication::valid_empty()
+            PartialApplication::valid_empty(self.get_location(instance_path))
         }
     }
 }
@@ -109,6 +112,8 @@ impl PropertyNamesBooleanValidator {
 }
 
 impl Validate for PropertyNamesBooleanValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(item) = instance {
             if !item.is_empty() {

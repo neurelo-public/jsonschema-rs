@@ -1,10 +1,11 @@
 use crate::{
     compilation::context::CompilationContext,
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::CompilationResult,
     paths::InstancePath,
     primitive_type::PrimitiveType,
-    validator::Validate,
+    validator::{Location, Validate},
 };
 use once_cell::sync::Lazy;
 use serde_json::{Map, Value};
@@ -58,6 +59,8 @@ impl PatternValidator {
 }
 
 impl Validate for PatternValidator {
+    get_location_from_path!();
+
     fn validate<'instance>(
         &self,
         instance: &'instance Value,

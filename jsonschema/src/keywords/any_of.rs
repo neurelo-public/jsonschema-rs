@@ -1,10 +1,11 @@
 use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     paths::InstancePath,
     primitive_type::PrimitiveType,
     schema_node::SchemaNode,
-    validator::{format_iter_of_validators, PartialApplication, Validate},
+    validator::{format_iter_of_validators, Location, PartialApplication, Validate},
 };
 use serde_json::{Map, Value};
 
@@ -46,6 +47,8 @@ impl AnyOfValidator {
 }
 
 impl Validate for AnyOfValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         self.schemas.iter().any(|s| s.is_valid(instance))
     }
@@ -74,7 +77,7 @@ impl Validate for AnyOfValidator {
         let mut successes = Vec::new();
         let mut failures = Vec::new();
         for node in &self.schemas {
-            let result = node.apply_rooted(instance, instance_path);
+            let result = node.apply(instance, instance_path);
             if result.is_valid() {
                 successes.push(result);
             } else {
@@ -82,9 +85,9 @@ impl Validate for AnyOfValidator {
             }
         }
         if successes.is_empty() {
-            failures.into_iter().collect()
+            failures.into_iter().sum()
         } else {
-            successes.into_iter().collect()
+            successes.into_iter().sum()
         }
     }
 }

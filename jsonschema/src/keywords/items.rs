@@ -1,14 +1,18 @@
 use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{no_error, ErrorIterator},
+    get_location_from_node, get_location_from_path,
     keywords::CompilationResult,
-    paths::InstancePath,
+    paths::{InstancePath, JSONPointer},
     schema_node::SchemaNode,
-    validator::{format_iter_of_validators, format_validators, PartialApplication, Validate},
+    validator::{
+        format_iter_of_validators, format_validators, Location, PartialApplication, Validate,
+    },
 };
 use serde_json::{Map, Value};
 
 pub(crate) struct ItemsArrayValidator {
+    schema_path: JSONPointer,
     items: Vec<SchemaNode>,
 }
 impl ItemsArrayValidator {
@@ -24,10 +28,15 @@ impl ItemsArrayValidator {
             let validators = compile_validators(item, &item_context)?;
             items.push(validators)
         }
-        Ok(Box::new(ItemsArrayValidator { items }))
+        Ok(Box::new(ItemsArrayValidator {
+            schema_path: keyword_context.into_pointer(),
+            items,
+        }))
     }
 }
 impl Validate for ItemsArrayValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Array(items) = instance {
             items
@@ -85,6 +94,8 @@ impl ItemsObjectValidator {
     }
 }
 impl Validate for ItemsObjectValidator {
+    get_location_from_node!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Array(items) = instance {
             items.iter().all(|i| self.node.is_valid(i))
@@ -120,9 +131,9 @@ impl Validate for ItemsObjectValidator {
             let mut results = Vec::with_capacity(items.len());
             for (idx, item) in items.iter().enumerate() {
                 let path = instance_path.push(idx);
-                results.push(self.node.apply_rooted(item, &path));
+                results.push(self.node.apply(item, &path));
             }
-            let mut output: PartialApplication = results.into_iter().collect();
+            let mut output: PartialApplication = results.into_iter().sum();
             // Per draft 2020-12 section https://json-schema.org/draft/2020-12/json-schema-core.html#rfc.section.10.3.1.2
             // we must produce an annotation with a boolean value indicating whether the subschema
             // was applied to any positions in the underlying array. Since the struct
@@ -132,7 +143,7 @@ impl Validate for ItemsObjectValidator {
             output.annotate(serde_json::json! {schema_was_applied}.into());
             output
         } else {
-            PartialApplication::valid_empty()
+            PartialApplication::valid_empty(self.get_location(instance_path))
         }
     }
 }
@@ -165,6 +176,8 @@ impl ItemsObjectSkipPrefixValidator {
 }
 
 impl Validate for ItemsObjectSkipPrefixValidator {
+    get_location_from_node!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Array(items) = instance {
             items
@@ -207,9 +220,9 @@ impl Validate for ItemsObjectSkipPrefixValidator {
             let mut results = Vec::with_capacity(items.len().saturating_sub(self.skip_prefix));
             for (idx, item) in items.iter().skip(self.skip_prefix).enumerate() {
                 let path = instance_path.push(idx + self.skip_prefix);
-                results.push(self.node.apply_rooted(item, &path));
+                results.push(self.node.apply(item, &path));
             }
-            let mut output: PartialApplication = results.into_iter().collect();
+            let mut output: PartialApplication = results.into_iter().sum();
             // Per draft 2020-12 section https://json-schema.org/draft/2020-12/json-schema-core.html#rfc.section.10.3.1.2
             // we must produce an annotation with a boolean value indicating whether the subschema
             // was applied to any positions in the underlying array.
@@ -217,7 +230,7 @@ impl Validate for ItemsObjectSkipPrefixValidator {
             output.annotate(serde_json::json! {schema_was_applied}.into());
             output
         } else {
-            PartialApplication::valid_empty()
+            PartialApplication::valid_empty(self.get_location(instance_path))
         }
     }
 }

@@ -1,16 +1,18 @@
 use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     paths::{InstancePath, JSONPointer},
     primitive_type::PrimitiveType,
     schema_node::SchemaNode,
-    validator::{format_iter_of_validators, PartialApplication, Validate},
+    validator::{format_iter_of_validators, Location, PartialApplication, Validate},
 };
 use serde_json::{Map, Value};
 
 use super::CompilationResult;
 
 pub(crate) struct PrefixItemsValidator {
+    schema_path: JSONPointer,
     schemas: Vec<SchemaNode>,
 }
 
@@ -27,11 +29,16 @@ impl PrefixItemsValidator {
             let validators = compile_validators(item, &item_context)?;
             schemas.push(validators)
         }
-        Ok(Box::new(PrefixItemsValidator { schemas }))
+        Ok(Box::new(PrefixItemsValidator {
+            schema_path: keyword_context.into_pointer(),
+            schemas,
+        }))
     }
 }
 
 impl Validate for PrefixItemsValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Array(items) = instance {
             self.schemas
@@ -76,7 +83,7 @@ impl Validate for PrefixItemsValidator {
                 for (idx, (schema_node, item)) in self.schemas.iter().zip(items.iter()).enumerate()
                 {
                     let path = instance_path.push(idx);
-                    results.push(schema_node.apply_rooted(item, &path));
+                    results.push(schema_node.apply(item, &path));
                     max_index_applied = idx;
                 }
                 // Per draft 2020-12 section https://json-schema.org/draft/2020-12/json-schema-core.html#rfc.section.10.3.1.1
@@ -88,12 +95,13 @@ impl Validate for PrefixItemsValidator {
                 } else {
                     max_index_applied.into()
                 };
-                let mut output: PartialApplication = results.into_iter().collect();
+                let mut output: PartialApplication = results.into_iter().sum();
                 output.annotate(schema_was_applied.into());
                 return output;
             }
         }
-        PartialApplication::valid_empty()
+
+        PartialApplication::valid_empty(self.get_location(instance_path))
     }
 }
 

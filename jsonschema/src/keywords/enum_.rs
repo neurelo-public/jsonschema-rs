@@ -1,10 +1,11 @@
 use crate::{
     compilation::context::CompilationContext,
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::{helpers, CompilationResult},
     paths::{InstancePath, JSONPointer},
     primitive_type::{PrimitiveType, PrimitiveTypesBitMap},
-    validator::Validate,
+    validator::{Location, Validate},
 };
 use serde_json::{Map, Value};
 
@@ -38,6 +39,8 @@ impl EnumValidator {
 }
 
 impl Validate for EnumValidator {
+    get_location_from_path!();
+
     fn validate<'instance>(
         &self,
         instance: &'instance Value,
@@ -104,6 +107,8 @@ impl SingleValueEnumValidator {
 }
 
 impl Validate for SingleValueEnumValidator {
+    get_location_from_path!();
+
     fn validate<'instance>(
         &self,
         instance: &'instance Value,

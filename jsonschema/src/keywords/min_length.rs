@@ -1,9 +1,10 @@
 use crate::{
     compilation::context::CompilationContext,
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::{helpers::fail_on_non_positive_integer, CompilationResult},
     paths::{InstancePath, JSONPointer},
-    validator::Validate,
+    validator::{Location, Validate},
 };
 use serde_json::{Map, Value};
 
@@ -24,6 +25,8 @@ impl MinLengthValidator {
 }
 
 impl Validate for MinLengthValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::String(item) = instance {
             if (bytecount::num_chars(item.as_bytes()) as u64) < self.limit {

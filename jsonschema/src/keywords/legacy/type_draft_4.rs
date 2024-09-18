@@ -1,10 +1,11 @@
 use crate::{
     compilation::context::CompilationContext,
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::{type_, CompilationResult},
     paths::{InstancePath, JSONPointer},
     primitive_type::{PrimitiveType, PrimitiveTypesBitMap},
-    validator::Validate,
+    validator::{Location, Validate},
 };
 use serde_json::{json, Map, Number, Value};
 use std::convert::TryFrom;
@@ -49,6 +50,8 @@ impl MultipleTypesValidator {
 }
 
 impl Validate for MultipleTypesValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         match instance {
             Value::Array(_) => self.types.contains_type(PrimitiveType::Array),
@@ -106,6 +109,8 @@ impl IntegerTypeValidator {
 }
 
 impl Validate for IntegerTypeValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Number(num) = instance {
             is_integer(num)

@@ -2,9 +2,9 @@ use crate::{
     compilation::context::CompilationContext,
     error::ErrorIterator,
     keywords::BoxedValidator,
-    output::{Annotations, BasicOutput, ErrorDescription, OutputUnit},
+    output::Annotations,
     paths::{AbsolutePath, InstancePath, JSONPointer},
-    validator::{format_validators, PartialApplication, Validate},
+    validator::{format_validators, Location, PartialApplication, Validate},
 };
 use ahash::AHashMap;
 use std::{collections::VecDeque, fmt};
@@ -109,65 +109,6 @@ impl SchemaNode {
         f.write_str(&format_validators(self.validators()))
     }
 
-    /// This is similar to `Validate::apply` except that `SchemaNode` knows where it is in the
-    /// validator tree and so rather than returning a `PartialApplication` it is able to return a
-    /// complete `BasicOutput`. This is the mechanism which compositional validators use to combine
-    /// results from sub-schemas
-    pub(crate) fn apply_rooted(
-        &self,
-        instance: &serde_json::Value,
-        instance_path: &InstancePath,
-    ) -> BasicOutput {
-        match self.apply(instance, instance_path) {
-            PartialApplication::Valid {
-                annotations,
-                mut child_results,
-            } => {
-                if let Some(annotations) = annotations {
-                    child_results.insert(0, self.annotation_at(instance_path, annotations));
-                };
-                BasicOutput::Valid(child_results)
-            }
-            PartialApplication::Invalid {
-                errors,
-                mut child_results,
-            } => {
-                for error in errors {
-                    child_results.insert(0, self.error_at(instance_path, error));
-                }
-                BasicOutput::Invalid(child_results)
-            }
-        }
-    }
-
-    /// Create an error output which is marked as occurring at this schema node
-    pub(crate) fn error_at(
-        &self,
-        instance_path: &InstancePath,
-        error: ErrorDescription,
-    ) -> OutputUnit<ErrorDescription> {
-        OutputUnit::<ErrorDescription>::error(
-            self.relative_path.clone(),
-            instance_path.clone().into(),
-            self.absolute_path.clone(),
-            error,
-        )
-    }
-
-    /// Create an annotation output which is marked as occurring at this schema node
-    pub(crate) fn annotation_at<'a>(
-        &self,
-        instance_path: &InstancePath,
-        annotations: Annotations<'a>,
-    ) -> OutputUnit<Annotations<'a>> {
-        OutputUnit::<Annotations<'_>>::annotations(
-            self.relative_path.clone(),
-            instance_path.clone().into(),
-            self.absolute_path.clone(),
-            annotations,
-        )
-    }
-
     /// Here we return a `NodeValidatorsErrIter` to avoid allocating in some situations. This isn't
     /// always possible but for a lot of common cases (e.g nodes with a single child) we can do it.
     /// This is wrapped in a `Box` by `SchemaNode::validate`
@@ -245,7 +186,7 @@ impl SchemaNode {
         I: Iterator<Item = (P, &'a Box<dyn Validate + Send + Sync + 'a>)> + 'a,
         P: Into<crate::paths::PathChunk> + std::fmt::Display,
     {
-        let mut success_results: VecDeque<OutputUnit<Annotations>> = VecDeque::new();
+        let mut success_results = VecDeque::new();
         let mut error_results = VecDeque::new();
         let path_and_validators = path_and_validators.map(|(p, v)| (p.into(), v));
 
@@ -264,23 +205,12 @@ impl SchemaNode {
                 .absolute_path
                 .clone()
                 .map(|p| p.with_path(path.to_string().as_str()));
-            match validator.apply(instance, instance_path) {
-                PartialApplication::Valid { .. } => {
-                    return PartialApplication::valid_empty();
+            match validator.apply(instance, location) {
+                application @ PartialApplication::Valid { .. } => {
+                    return application;
                 }
-                PartialApplication::Invalid {
-                    errors: these_errors,
-                    child_results,
-                } => {
-                    nullable_error_results.extend(child_results);
-                    nullable_error_results.extend(these_errors.into_iter().map(|error| {
-                        OutputUnit::<ErrorDescription>::error(
-                            path.clone(),
-                            instance_path.into(),
-                            absolute_path.clone(),
-                            error,
-                        )
-                    }));
+                application @ PartialApplication::Invalid { .. } => {
+                    nullable_error_results.push_back(application);
                 }
             }
         }
@@ -292,33 +222,11 @@ impl SchemaNode {
                 .clone()
                 .map(|p| p.with_path(path.to_string().as_str()));
             match validator.apply(instance, instance_path) {
-                PartialApplication::Valid {
-                    annotations,
-                    child_results,
-                } => {
-                    if let Some(annotations) = annotations {
-                        success_results.push_front(OutputUnit::<Annotations<'a>>::annotations(
-                            path,
-                            instance_path.into(),
-                            absolute_path,
-                            annotations,
-                        ));
-                    }
-                    success_results.extend(child_results);
+                application @ PartialApplication::Valid { .. } => {
+                    success_results.push_back(application);
                 }
-                PartialApplication::Invalid {
-                    errors: these_errors,
-                    child_results,
-                } => {
-                    error_results.extend(child_results);
-                    error_results.extend(these_errors.into_iter().map(|error| {
-                        OutputUnit::<ErrorDescription>::error(
-                            path.clone(),
-                            instance_path.into(),
-                            absolute_path.clone(),
-                            error,
-                        )
-                    }));
+                application @ PartialApplication::Invalid { .. } => {
+                    error_results.push_back(application);
                 }
             }
         }
@@ -326,6 +234,7 @@ impl SchemaNode {
         if error_results.is_empty() {
             PartialApplication::Valid {
                 annotations,
+                location: self.get_location(instance_path),
                 child_results: success_results,
             }
         } else {
@@ -333,7 +242,9 @@ impl SchemaNode {
             error_results.append(&mut nullable_error_results);
             PartialApplication::Invalid {
                 errors: Vec::new(),
+                location: self.get_location(instance_path),
                 child_results: error_results,
+                matches_count: success_results.len(),
             }
         }
     }
@@ -346,6 +257,14 @@ impl fmt::Display for SchemaNode {
 }
 
 impl Validate for SchemaNode {
+    fn get_location(&self, instance_path: &InstancePath) -> Location {
+        Location::new(
+            self.relative_path.clone(),
+            instance_path.into(),
+            self.absolute_path.clone(),
+        )
+    }
+
     fn validate<'instance>(
         &self,
         instance: &'instance serde_json::Value,
@@ -386,6 +305,7 @@ impl Validate for SchemaNode {
                 } else {
                     PartialApplication::Valid {
                         annotations: None,
+                        location: self.get_location(instance_path),
                         child_results: VecDeque::new(),
                     }
                 }

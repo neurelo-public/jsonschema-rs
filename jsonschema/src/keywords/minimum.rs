@@ -1,10 +1,11 @@
 use crate::{
     compilation::context::CompilationContext,
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::CompilationResult,
     paths::{InstancePath, JSONPointer},
     primitive_type::PrimitiveType,
-    validator::Validate,
+    validator::{Location, Validate},
 };
 use num_cmp::NumCmp;
 use serde_json::{Map, Value};
@@ -28,6 +29,8 @@ pub(crate) struct MinimumF64Validator {
 macro_rules! validate {
     ($validator: ty) => {
         impl Validate for $validator {
+            get_location_from_path!();
+
             fn validate<'instance>(
                 &self,
                 instance: &'instance Value,
@@ -71,6 +74,8 @@ validate!(MinimumU64Validator);
 validate!(MinimumI64Validator);
 
 impl Validate for MinimumF64Validator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Number(item) = instance {
             return if let Some(item) = item.as_u64() {

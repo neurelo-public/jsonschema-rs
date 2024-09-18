@@ -1,15 +1,17 @@
 use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::{required, unique_items, CompilationResult},
     paths::{InstancePath, JSONPointer},
     primitive_type::PrimitiveType,
     schema_node::SchemaNode,
-    validator::{format_key_value_validators, Validate},
+    validator::{format_key_value_validators, Location, Validate},
 };
 use serde_json::{Map, Value};
 
 pub(crate) struct DependenciesValidator {
+    schema_path: JSONPointer,
     dependencies: Vec<(String, SchemaNode)>,
 }
 
@@ -37,7 +39,10 @@ impl DependenciesValidator {
                 };
                 dependencies.push((key.clone(), s))
             }
-            Ok(Box::new(DependenciesValidator { dependencies }))
+            Ok(Box::new(DependenciesValidator {
+                schema_path: keyword_context.into_pointer(),
+                dependencies,
+            }))
         } else {
             Err(ValidationError::single_type_error(
                 JSONPointer::default(),
@@ -50,6 +55,8 @@ impl DependenciesValidator {
 }
 
 impl Validate for DependenciesValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(item) = instance {
             self.dependencies
@@ -93,6 +100,7 @@ impl core::fmt::Display for DependenciesValidator {
 }
 
 pub(crate) struct DependentRequiredValidator {
+    schema_path: JSONPointer,
     dependencies: Vec<(String, SchemaNode)>,
 }
 
@@ -133,7 +141,10 @@ impl DependentRequiredValidator {
                     ));
                 }
             }
-            Ok(Box::new(DependentRequiredValidator { dependencies }))
+            Ok(Box::new(DependentRequiredValidator {
+                schema_path: keyword_context.into_pointer(),
+                dependencies,
+            }))
         } else {
             Err(ValidationError::single_type_error(
                 JSONPointer::default(),
@@ -145,6 +156,8 @@ impl DependentRequiredValidator {
     }
 }
 impl Validate for DependentRequiredValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(item) = instance {
             self.dependencies
@@ -184,6 +197,7 @@ impl core::fmt::Display for DependentRequiredValidator {
 }
 
 pub(crate) struct DependentSchemasValidator {
+    schema_path: JSONPointer,
     dependencies: Vec<(String, SchemaNode)>,
 }
 impl DependentSchemasValidator {
@@ -200,7 +214,10 @@ impl DependentSchemasValidator {
                 let schema_nodes = compile_validators(subschema, &item_context)?;
                 dependencies.push((key.clone(), schema_nodes));
             }
-            Ok(Box::new(DependentSchemasValidator { dependencies }))
+            Ok(Box::new(DependentSchemasValidator {
+                schema_path: keyword_context.into_pointer(),
+                dependencies,
+            }))
         } else {
             Err(ValidationError::single_type_error(
                 JSONPointer::default(),
@@ -212,6 +229,8 @@ impl DependentSchemasValidator {
     }
 }
 impl Validate for DependentSchemasValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(item) = instance {
             self.dependencies

@@ -4,10 +4,11 @@ use crate::{
     content_encoding::{ContentEncodingCheckType, ContentEncodingConverterType},
     content_media_type::ContentMediaTypeCheckType,
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::CompilationResult,
     paths::{InstancePath, JSONPointer},
     primitive_type::PrimitiveType,
-    validator::Validate,
+    validator::{Location, Validate},
 };
 use serde_json::{Map, Value};
 
@@ -35,6 +36,8 @@ impl ContentMediaTypeValidator {
 
 /// Validator delegates validation to the stored function.
 impl Validate for ContentMediaTypeValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::String(item) = instance {
             (self.func)(item)
@@ -94,6 +97,8 @@ impl ContentEncodingValidator {
 }
 
 impl Validate for ContentEncodingValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::String(item) = instance {
             (self.func)(item)
@@ -160,6 +165,8 @@ impl ContentMediaTypeAndEncodingValidator {
 
 /// Decode the input value & check media type
 impl Validate for ContentMediaTypeAndEncodingValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::String(item) = instance {
             match (self.converter)(item) {

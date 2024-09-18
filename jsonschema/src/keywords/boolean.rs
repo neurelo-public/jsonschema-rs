@@ -2,8 +2,9 @@ use crate::paths::{InstancePath, JSONPointer};
 
 use crate::{
     error::{error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::CompilationResult,
-    validator::Validate,
+    validator::{Location, Validate},
 };
 use serde_json::Value;
 
@@ -17,6 +18,8 @@ impl FalseValidator {
     }
 }
 impl Validate for FalseValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, _: &Value) -> bool {
         false
     }

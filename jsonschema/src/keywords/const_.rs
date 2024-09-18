@@ -1,8 +1,9 @@
 use crate::{
     compilation::context::CompilationContext,
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::{helpers, CompilationResult},
-    validator::Validate,
+    validator::{Location, Validate},
 };
 use serde_json::{Map, Number, Value};
 use std::f64::EPSILON;
@@ -23,6 +24,8 @@ impl ConstArrayValidator {
     }
 }
 impl Validate for ConstArrayValidator {
+    get_location_from_path!();
+
     #[inline]
     fn validate<'instance>(
         &self,
@@ -75,6 +78,8 @@ impl ConstBooleanValidator {
     }
 }
 impl Validate for ConstBooleanValidator {
+    get_location_from_path!();
+
     #[inline]
     fn validate<'instance>(
         &self,
@@ -118,6 +123,8 @@ impl ConstNullValidator {
     }
 }
 impl Validate for ConstNullValidator {
+    get_location_from_path!();
+
     #[inline]
     fn validate<'instance>(
         &self,
@@ -167,6 +174,8 @@ impl ConstNumberValidator {
 }
 
 impl Validate for ConstNumberValidator {
+    get_location_from_path!();
+
     fn validate<'instance>(
         &self,
         instance: &'instance Value,
@@ -218,6 +227,8 @@ impl ConstObjectValidator {
 }
 
 impl Validate for ConstObjectValidator {
+    get_location_from_path!();
+
     fn validate<'instance>(
         &self,
         instance: &'instance Value,
@@ -274,6 +285,8 @@ impl ConstStringValidator {
 }
 
 impl Validate for ConstStringValidator {
+    get_location_from_path!();
+
     fn validate<'instance>(
         &self,
         instance: &'instance Value,

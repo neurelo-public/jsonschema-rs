@@ -9,12 +9,12 @@
 use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_node, get_location_from_path,
     keywords::CompilationResult,
-    output::{Annotations, BasicOutput, OutputUnit},
     paths::{AbsolutePath, InstancePath, JSONPointer},
     properties::*,
     schema_node::SchemaNode,
-    validator::{format_validators, PartialApplication, Validate},
+    validator::{format_validators, Location, PartialApplication, Validate},
 };
 use serde_json::{Map, Value};
 
@@ -91,6 +91,8 @@ impl AdditionalPropertiesValidator {
     }
 }
 impl Validate for AdditionalPropertiesValidator {
+    get_location_from_node!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(item) = instance {
             item.values().all(|i| self.node.is_valid(i))
@@ -123,17 +125,16 @@ impl Validate for AdditionalPropertiesValidator {
     ) -> PartialApplication<'a> {
         if let Value::Object(item) = instance {
             let mut matched_props = Vec::with_capacity(item.len());
-            let mut output = BasicOutput::default();
+            let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
             for (name, value) in item.iter() {
                 let path = instance_path.push(name.to_string());
-                output += self.node.apply_rooted(value, &path);
+                result += self.node.apply(value, &path);
                 matched_props.push(name.clone());
             }
-            let mut result: PartialApplication = output.into();
             result.annotate(serde_json::Value::from(matched_props).into());
             result
         } else {
-            PartialApplication::valid_empty()
+            PartialApplication::valid_empty(self.get_location(instance_path))
         }
     }
 }
@@ -171,6 +172,8 @@ impl AdditionalPropertiesFalseValidator {
     }
 }
 impl Validate for AdditionalPropertiesFalseValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(item) = instance {
             item.iter().next().is_none()
@@ -249,6 +252,8 @@ impl AdditionalPropertiesNotEmptyFalseValidator<BigValidatorsMap> {
     }
 }
 impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesNotEmptyFalseValidator<M> {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(props) = instance {
             are_properties_valid(&self.properties, props, |_| false)
@@ -293,18 +298,18 @@ impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesNotEmptyFalseV
         instance: &Value,
         instance_path: &InstancePath,
     ) -> PartialApplication<'a> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
+
         if let Value::Object(item) = instance {
             let mut unexpected = Vec::with_capacity(item.len());
-            let mut output = BasicOutput::default();
             for (property, value) in item {
                 if let Some((_name, node)) = self.properties.get_key_validator(property) {
                     let path = instance_path.push(property.clone());
-                    output += node.apply_rooted(value, &path);
+                    result += node.apply(value, &path);
                 } else {
                     unexpected.push(property.clone())
                 }
             }
-            let mut result: PartialApplication = output.into();
             if !unexpected.is_empty() {
                 result.mark_errored(
                     ValidationError::additional_properties(
@@ -316,10 +321,9 @@ impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesNotEmptyFalseV
                     .into(),
                 );
             }
-            result
-        } else {
-            PartialApplication::valid_empty()
         }
+
+        result
     }
 }
 
@@ -383,6 +387,8 @@ impl AdditionalPropertiesNotEmptyValidator<BigValidatorsMap> {
     }
 }
 impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesNotEmptyValidator<M> {
+    get_location_from_node!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(props) = instance {
             are_properties_valid(&self.properties, props, |instance| {
@@ -420,28 +426,27 @@ impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesNotEmptyValida
         instance: &Value,
         instance_path: &InstancePath,
     ) -> PartialApplication<'a> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
+
         if let Value::Object(map) = instance {
             let mut matched_propnames = Vec::with_capacity(map.len());
-            let mut output = BasicOutput::default();
             for (property, value) in map {
                 let path = instance_path.push(property.clone());
                 if let Some((_name, property_validators)) =
                     self.properties.get_key_validator(property)
                 {
-                    output += property_validators.apply_rooted(value, &path);
+                    result += property_validators.apply(value, &path);
                 } else {
-                    output += self.node.apply_rooted(value, &path);
+                    result += self.node.apply(value, &path);
                     matched_propnames.push(property.clone());
                 }
             }
-            let mut result: PartialApplication = output.into();
             if !matched_propnames.is_empty() {
                 result.annotate(serde_json::Value::from(matched_propnames).into());
             }
-            result
-        } else {
-            PartialApplication::valid_empty()
         }
+
+        result
     }
 }
 
@@ -505,6 +510,8 @@ impl AdditionalPropertiesWithPatternsValidator {
     }
 }
 impl Validate for AdditionalPropertiesWithPatternsValidator {
+    get_location_from_node!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(item) = instance {
             for (property, value) in item.iter() {
@@ -556,8 +563,9 @@ impl Validate for AdditionalPropertiesWithPatternsValidator {
         instance: &Value,
         instance_path: &InstancePath,
     ) -> PartialApplication<'a> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
+
         if let Value::Object(item) = instance {
-            let mut output = BasicOutput::default();
             let mut pattern_matched_propnames = Vec::with_capacity(item.len());
             let mut additional_matched_propnames = Vec::with_capacity(item.len());
             for (property, value) in item {
@@ -567,31 +575,26 @@ impl Validate for AdditionalPropertiesWithPatternsValidator {
                     if pattern.is_match(property).unwrap_or(false) {
                         has_match = true;
                         pattern_matched_propnames.push(property.clone());
-                        output += node.apply_rooted(value, &path)
+                        result += node.apply(value, &path)
                     }
                 }
                 if !has_match {
                     additional_matched_propnames.push(property.clone());
-                    output += self.node.apply_rooted(value, &path)
+                    result += self.node.apply(value, &path)
                 }
             }
             if !pattern_matched_propnames.is_empty() {
-                output += OutputUnit::<Annotations<'_>>::annotations(
-                    self.pattern_keyword_path.clone(),
-                    instance_path.into(),
-                    self.pattern_keyword_absolute_path.clone(),
+                result += PartialApplication::valid(
+                    self.get_location(instance_path),
                     serde_json::Value::from(pattern_matched_propnames).into(),
-                )
-                .into();
+                );
             }
-            let mut result: PartialApplication = output.into();
             if !additional_matched_propnames.is_empty() {
                 result.annotate(serde_json::Value::from(additional_matched_propnames).into())
             }
-            result
-        } else {
-            PartialApplication::valid_empty()
         }
+
+        result
     }
 }
 
@@ -650,6 +653,8 @@ impl AdditionalPropertiesWithPatternsFalseValidator {
     }
 }
 impl Validate for AdditionalPropertiesWithPatternsFalseValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(item) = instance {
             // No properties are allowed, except ones defined in `patternProperties`
@@ -702,8 +707,9 @@ impl Validate for AdditionalPropertiesWithPatternsFalseValidator {
         instance: &Value,
         instance_path: &InstancePath,
     ) -> PartialApplication<'a> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
+
         if let Value::Object(item) = instance {
-            let mut output = BasicOutput::default();
             let mut unexpected = Vec::with_capacity(item.len());
             let mut pattern_matched_props = Vec::with_capacity(item.len());
             for (property, value) in item {
@@ -713,7 +719,7 @@ impl Validate for AdditionalPropertiesWithPatternsFalseValidator {
                     if pattern.is_match(property).unwrap_or(false) {
                         has_match = true;
                         pattern_matched_props.push(property.clone());
-                        output += node.apply_rooted(value, &path);
+                        result += node.apply(value, &path);
                     }
                 }
                 if !has_match {
@@ -721,15 +727,11 @@ impl Validate for AdditionalPropertiesWithPatternsFalseValidator {
                 }
             }
             if !pattern_matched_props.is_empty() {
-                output += OutputUnit::<Annotations<'_>>::annotations(
-                    self.pattern_keyword_path.clone(),
-                    instance_path.into(),
-                    self.pattern_keyword_absolute_path.clone(),
+                result += PartialApplication::valid(
+                    self.get_location(instance_path),
                     serde_json::Value::from(pattern_matched_props).into(),
-                )
-                .into();
+                );
             }
-            let mut result: PartialApplication = output.into();
             if !unexpected.is_empty() {
                 result.mark_errored(
                     ValidationError::additional_properties(
@@ -741,10 +743,9 @@ impl Validate for AdditionalPropertiesWithPatternsFalseValidator {
                     .into(),
                 );
             }
-            result
-        } else {
-            PartialApplication::valid_empty()
         }
+
+        result
     }
 }
 
@@ -822,6 +823,8 @@ impl AdditionalPropertiesWithPatternsNotEmptyValidator<BigValidatorsMap> {
     }
 }
 impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesWithPatternsNotEmptyValidator<M> {
+    get_location_from_node!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(item) = instance {
             for (property, value) in item.iter() {
@@ -901,16 +904,17 @@ impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesWithPatternsNo
         instance: &Value,
         instance_path: &InstancePath,
     ) -> PartialApplication<'a> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
+
         if let Value::Object(item) = instance {
-            let mut output = BasicOutput::default();
             let mut additional_matches = Vec::with_capacity(item.len());
             for (property, value) in item.iter() {
                 let path = instance_path.push(property.clone());
                 if let Some((_name, node)) = self.properties.get_key_validator(property) {
-                    output += node.apply_rooted(value, &path);
+                    result += node.apply(value, &path);
                     for (pattern, node) in &self.patterns {
                         if pattern.is_match(property).unwrap_or(false) {
-                            output += node.apply_rooted(value, &path);
+                            result += node.apply(value, &path);
                         }
                     }
                 } else {
@@ -918,21 +922,19 @@ impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesWithPatternsNo
                     for (pattern, node) in &self.patterns {
                         if pattern.is_match(property).unwrap_or(false) {
                             has_match = true;
-                            output += node.apply_rooted(value, &path);
+                            result += node.apply(value, &path);
                         }
                     }
                     if !has_match {
                         additional_matches.push(property.clone());
-                        output += self.node.apply_rooted(value, &path);
+                        result += self.node.apply(value, &path);
                     }
                 }
             }
-            let mut result: PartialApplication = output.into();
             result.annotate(serde_json::Value::from(additional_matches).into());
-            result
-        } else {
-            PartialApplication::valid_empty()
         }
+
+        result
     }
 }
 impl<M: PropertiesValidatorsMap> core::fmt::Display
@@ -1014,6 +1016,8 @@ impl AdditionalPropertiesWithPatternsNotEmptyFalseValidator<BigValidatorsMap> {
 impl<M: PropertiesValidatorsMap> Validate
     for AdditionalPropertiesWithPatternsNotEmptyFalseValidator<M>
 {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(item) = instance {
             // No properties are allowed, except ones defined in `properties` or `patternProperties`
@@ -1092,17 +1096,18 @@ impl<M: PropertiesValidatorsMap> Validate
         instance: &Value,
         instance_path: &InstancePath,
     ) -> PartialApplication<'a> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
+
         if let Value::Object(item) = instance {
-            let mut output = BasicOutput::default();
             let mut unexpected = vec![];
             // No properties are allowed, except ones defined in `properties` or `patternProperties`
             for (property, value) in item.iter() {
                 let path = instance_path.push(property.clone());
                 if let Some((_name, node)) = self.properties.get_key_validator(property) {
-                    output += node.apply_rooted(value, &path);
+                    result += node.apply(value, &path);
                     for (pattern, node) in &self.patterns {
                         if pattern.is_match(property).unwrap_or(false) {
-                            output += node.apply_rooted(value, &path);
+                            result += node.apply(value, &path);
                         }
                     }
                 } else {
@@ -1110,7 +1115,7 @@ impl<M: PropertiesValidatorsMap> Validate
                     for (pattern, node) in &self.patterns {
                         if pattern.is_match(property).unwrap_or(false) {
                             has_match = true;
-                            output += node.apply_rooted(value, &path);
+                            result += node.apply(value, &path);
                         }
                     }
                     if !has_match {
@@ -1118,7 +1123,6 @@ impl<M: PropertiesValidatorsMap> Validate
                     }
                 }
             }
-            let mut result: PartialApplication = output.into();
             if !unexpected.is_empty() {
                 result.mark_errored(
                     ValidationError::additional_properties(
@@ -1130,10 +1134,9 @@ impl<M: PropertiesValidatorsMap> Validate
                     .into(),
                 )
             }
-            result
-        } else {
-            PartialApplication::valid_empty()
         }
+
+        result
     }
 }
 

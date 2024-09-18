@@ -1,13 +1,13 @@
 use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{error, ErrorIterator},
+    get_location_from_path,
     keywords::CompilationResult,
-    output::BasicOutput,
     paths::{InstancePath, JSONPointer},
     primitive_type::PrimitiveType,
     resolver::Resolver,
     schema_node::SchemaNode,
-    validator::{PartialApplication, Validate},
+    validator::{Location, PartialApplication, Validate},
     CompilationOptions, Draft, ValidationError,
 };
 use parking_lot::RwLock;
@@ -74,6 +74,8 @@ impl RefValidator {
 }
 
 impl Validate for RefValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Err(_) = self.resolve_sub_nodes() {
             return false;
@@ -114,22 +116,28 @@ impl Validate for RefValidator {
         instance_path: &InstancePath,
     ) -> PartialApplication<'a> {
         if let Err(err) = self.resolve_sub_nodes() {
-            return PartialApplication::invalid_empty(vec![err.into()]);
+            return PartialApplication::invalid_empty(
+                self.get_location(instance_path),
+                vec![err.into()],
+            );
         }
 
         if let Some(node) = self.sub_nodes.read().as_ref() {
             // Only BasicOutput::Invalid can be handled here because BasicOutput::Valid depends on the lifetime of the SchemaNode
             // it was generated from. Given that the SchemaNode comes from a RwLock that sets its lifetime, it cannot guarantee
             // it will live enough for BasicOutput::Valid to be used as the returned value
-            if let BasicOutput::Invalid(x) = node.apply_rooted(instance, instance_path) {
-                return BasicOutput::Invalid(x).into();
-            }
-
-            // Generate an empty instance to circumvent the lifetime issue described above
-            return PartialApplication::valid_empty();
+            return match node.apply(instance, instance_path) {
+                PartialApplication::Invalid { errors, .. } => {
+                    PartialApplication::invalid_empty(self.get_location(instance_path), errors)
+                }
+                _ => PartialApplication::valid_empty(self.get_location(instance_path)),
+            };
         }
 
-        PartialApplication::invalid_empty(vec!["Failed resolve reference".into()])
+        PartialApplication::invalid_empty(
+            self.get_location(instance_path),
+            vec!["Failed resolve reference".into()],
+        )
     }
 }
 

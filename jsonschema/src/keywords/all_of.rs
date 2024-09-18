@@ -1,17 +1,20 @@
 use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{ErrorIterator, ValidationError},
-    output::BasicOutput,
+    get_location_from_node, get_location_from_path,
     paths::{InstancePath, JSONPointer},
     primitive_type::PrimitiveType,
     schema_node::SchemaNode,
-    validator::{format_iter_of_validators, format_validators, PartialApplication, Validate},
+    validator::{
+        format_iter_of_validators, format_validators, Location, PartialApplication, Validate,
+    },
 };
 use serde_json::{Map, Value};
 
 use super::CompilationResult;
 
 pub(crate) struct AllOfValidator {
+    schema_path: JSONPointer,
     schemas: Vec<SchemaNode>,
 }
 
@@ -28,11 +31,16 @@ impl AllOfValidator {
             let validators = compile_validators(item, &item_context)?;
             schemas.push(validators)
         }
-        Ok(Box::new(AllOfValidator { schemas }))
+        Ok(Box::new(AllOfValidator {
+            schema_path: keyword_context.into_pointer(),
+            schemas,
+        }))
     }
 }
 
 impl Validate for AllOfValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         self.schemas.iter().all(|n| n.is_valid(instance))
     }
@@ -58,9 +66,8 @@ impl Validate for AllOfValidator {
     ) -> PartialApplication<'a> {
         self.schemas
             .iter()
-            .map(move |node| node.apply_rooted(instance, instance_path))
-            .sum::<BasicOutput<'_>>()
-            .into()
+            .map(move |node| node.apply(instance, instance_path))
+            .sum::<PartialApplication<'_>>()
     }
 }
 
@@ -91,6 +98,8 @@ impl SingleValueAllOfValidator {
 }
 
 impl Validate for SingleValueAllOfValidator {
+    get_location_from_node!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         self.node.is_valid(instance)
     }
@@ -108,7 +117,7 @@ impl Validate for SingleValueAllOfValidator {
         instance: &Value,
         instance_path: &InstancePath,
     ) -> PartialApplication<'a> {
-        self.node.apply_rooted(instance, instance_path).into()
+        self.node.apply(instance, instance_path).into()
     }
 }
 

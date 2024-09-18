@@ -1,10 +1,11 @@
 use crate::{
     compilation::context::CompilationContext,
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::CompilationResult,
     paths::{InstancePath, JSONPointer},
     primitive_type::PrimitiveType,
-    validator::Validate,
+    validator::{Location, Validate},
 };
 use fraction::{BigFraction, BigUint};
 use serde_json::{Map, Value};
@@ -25,6 +26,8 @@ impl MultipleOfFloatValidator {
 }
 
 impl Validate for MultipleOfFloatValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Number(item) = instance {
             let item = item.as_f64().expect("Always valid");
@@ -84,6 +87,8 @@ impl MultipleOfIntegerValidator {
 }
 
 impl Validate for MultipleOfIntegerValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Number(item) = instance {
             let item = item.as_f64().expect("Always valid");

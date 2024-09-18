@@ -1,10 +1,11 @@
 use crate::{
     compilation::context::CompilationContext,
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::CompilationResult,
     paths::{InstancePath, JSONPointer},
     primitive_type::PrimitiveType,
-    validator::Validate,
+    validator::{Location, Validate},
 };
 use serde_json::{Map, Value};
 
@@ -38,6 +39,8 @@ impl RequiredValidator {
 }
 
 impl Validate for RequiredValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Object(item) = instance {
             self.required
@@ -96,6 +99,8 @@ impl SingleItemRequiredValidator {
 }
 
 impl Validate for SingleItemRequiredValidator {
+    get_location_from_path!();
+
     fn validate<'instance>(
         &self,
         instance: &'instance Value,

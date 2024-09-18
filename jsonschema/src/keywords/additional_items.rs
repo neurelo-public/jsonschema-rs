@@ -1,11 +1,12 @@
 use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_node, get_location_from_path,
     keywords::{boolean::FalseValidator, CompilationResult},
     paths::{InstancePath, JSONPointer},
     primitive_type::{PrimitiveType, PrimitiveTypesBitMap},
     schema_node::SchemaNode,
-    validator::{format_validators, Validate},
+    validator::{format_validators, Location, Validate},
 };
 use serde_json::{Map, Value};
 
@@ -28,6 +29,8 @@ impl AdditionalItemsObjectValidator {
     }
 }
 impl Validate for AdditionalItemsObjectValidator {
+    get_location_from_node!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Array(items) = instance {
             items
@@ -86,6 +89,8 @@ impl AdditionalItemsBooleanValidator {
     }
 }
 impl Validate for AdditionalItemsBooleanValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Array(items) = instance {
             if items.len() > self.items_count {

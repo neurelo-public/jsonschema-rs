@@ -5,20 +5,18 @@
 //! main contribution of this module is [`Output::basic`]. See the documentation
 //! of that method for more information.
 
-use std::{
-    borrow::Cow,
-    collections::VecDeque,
-    fmt,
-    iter::{FromIterator, Sum},
-    ops::AddAssign,
-};
+use std::{borrow::Cow, collections::VecDeque, fmt, iter::Sum, ops::AddAssign};
 
-use crate::{validator::PartialApplication, ValidationError};
+use crate::{
+    paths::InstancePath,
+    validator::{PartialApplication, Validate},
+    ValidationError,
+};
 use ahash::AHashMap;
 use serde::ser::SerializeMap;
 
 use crate::{
-    paths::{AbsolutePath, InstancePath, JSONPointer},
+    paths::{AbsolutePath, JSONPointer},
     schema_node::SchemaNode,
     JSONSchema,
 };
@@ -107,7 +105,8 @@ impl<'a, 'b> Output<'a, 'b> {
     #[must_use]
     pub fn basic(&self) -> BasicOutput<'a> {
         self.root_node
-            .apply_rooted(self.instance, &InstancePath::new())
+            .apply(self.instance, &InstancePath::new())
+            .into()
     }
 }
 
@@ -128,6 +127,66 @@ impl<'a> BasicOutput<'a> {
         match self {
             BasicOutput::Valid(..) => true,
             BasicOutput::Invalid(..) => false,
+        }
+    }
+}
+
+impl<'a> From<PartialApplication<'a>> for BasicOutput<'a> {
+    fn from(value: PartialApplication<'a>) -> Self {
+        match value {
+            PartialApplication::Valid {
+                location,
+                annotations,
+                child_results,
+            } => {
+                let mut all_annotations = VecDeque::new();
+
+                if let Some(annotations) = annotations {
+                    all_annotations.insert(
+                        0,
+                        OutputUnit::<Annotations<'a>>::annotations(
+                            location.keyword_location,
+                            location.instance_location,
+                            location.absolute_keyword_location,
+                            annotations,
+                        ),
+                    )
+                }
+
+                let child_output: BasicOutput = child_results.into_iter().map(|v| v.into()).sum();
+
+                let mut result = BasicOutput::Valid(all_annotations);
+                result += child_output;
+
+                result
+            }
+            PartialApplication::Invalid {
+                errors,
+                location,
+                child_results,
+                ..
+            } => {
+                let mut all_errors = VecDeque::new();
+
+                for error in errors {
+                    all_errors.insert(
+                        0,
+                        OutputUnit::<ErrorDescription>::error(
+                            location.keyword_location.clone(),
+                            location.instance_location.clone(),
+                            location.absolute_keyword_location.clone(),
+                            error,
+                        ),
+                    )
+                }
+
+                let child_output: BasicOutput = child_results.into_iter().map(|v| v.into()).sum();
+
+                let mut result = BasicOutput::Invalid(all_errors);
+                result += child_output;
+
+                result
+            }
         }
     }
 }
@@ -170,27 +229,6 @@ impl<'a> Sum for BasicOutput<'a> {
 impl<'a> Default for BasicOutput<'a> {
     fn default() -> Self {
         BasicOutput::Valid(VecDeque::new())
-    }
-}
-
-impl<'a> From<BasicOutput<'a>> for PartialApplication<'a> {
-    fn from(output: BasicOutput<'a>) -> Self {
-        match output {
-            BasicOutput::Valid(anns) => PartialApplication::Valid {
-                annotations: None,
-                child_results: anns,
-            },
-            BasicOutput::Invalid(errors) => PartialApplication::Invalid {
-                errors: Vec::new(),
-                child_results: errors,
-            },
-        }
-    }
-}
-
-impl<'a> FromIterator<BasicOutput<'a>> for PartialApplication<'a> {
-    fn from_iter<T: IntoIterator<Item = BasicOutput<'a>>>(iter: T) -> Self {
-        iter.into_iter().sum::<BasicOutput<'_>>().into()
     }
 }
 

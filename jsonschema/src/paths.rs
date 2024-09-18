@@ -41,10 +41,6 @@ impl JSONPointer {
         new.0.extend_from_slice(chunks);
         new
     }
-
-    pub(crate) fn as_slice(&self) -> &[PathChunk] {
-        &self.0
-    }
 }
 
 impl serde::Serialize for JSONPointer {

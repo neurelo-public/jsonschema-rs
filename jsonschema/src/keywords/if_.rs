@@ -1,10 +1,11 @@
 use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{no_error, ErrorIterator},
+    get_location_from_schema,
     keywords::CompilationResult,
     paths::InstancePath,
     schema_node::SchemaNode,
-    validator::{format_validators, PartialApplication, Validate},
+    validator::{format_validators, Location, PartialApplication, Validate},
 };
 use serde_json::{Map, Value};
 
@@ -34,6 +35,8 @@ impl IfThenValidator {
 }
 
 impl Validate for IfThenValidator {
+    get_location_from_schema!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if self.schema.is_valid(instance) {
             self.then_schema.is_valid(instance)
@@ -61,13 +64,13 @@ impl Validate for IfThenValidator {
         instance: &Value,
         instance_path: &InstancePath,
     ) -> PartialApplication<'a> {
-        let mut if_result = self.schema.apply_rooted(instance, instance_path);
+        let mut if_result = self.schema.apply(instance, instance_path);
         if if_result.is_valid() {
-            let then_result = self.then_schema.apply_rooted(instance, instance_path);
+            let then_result = self.then_schema.apply(instance, instance_path);
             if_result += then_result;
             if_result.into()
         } else {
-            PartialApplication::valid_empty()
+            PartialApplication::valid_empty(self.get_location(instance_path))
         }
     }
 }
@@ -109,6 +112,8 @@ impl IfElseValidator {
 }
 
 impl Validate for IfElseValidator {
+    get_location_from_schema!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if self.schema.is_valid(instance) {
             true
@@ -136,13 +141,11 @@ impl Validate for IfElseValidator {
         instance: &Value,
         instance_path: &InstancePath,
     ) -> PartialApplication<'a> {
-        let if_result = self.schema.apply_rooted(instance, instance_path);
+        let if_result = self.schema.apply(instance, instance_path);
         if if_result.is_valid() {
             if_result.into()
         } else {
-            self.else_schema
-                .apply_rooted(instance, instance_path)
-                .into()
+            self.else_schema.apply(instance, instance_path).into()
         }
     }
 }
@@ -190,6 +193,8 @@ impl IfThenElseValidator {
 }
 
 impl Validate for IfThenElseValidator {
+    get_location_from_schema!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if self.schema.is_valid(instance) {
             self.then_schema.is_valid(instance)
@@ -218,14 +223,12 @@ impl Validate for IfThenElseValidator {
         instance: &Value,
         instance_path: &InstancePath,
     ) -> PartialApplication<'a> {
-        let mut if_result = self.schema.apply_rooted(instance, instance_path);
+        let mut if_result = self.schema.apply(instance, instance_path);
         if if_result.is_valid() {
-            if_result += self.then_schema.apply_rooted(instance, instance_path);
+            if_result += self.then_schema.apply(instance, instance_path);
             if_result.into()
         } else {
-            self.else_schema
-                .apply_rooted(instance, instance_path)
-                .into()
+            self.else_schema.apply(instance, instance_path).into()
         }
     }
 }

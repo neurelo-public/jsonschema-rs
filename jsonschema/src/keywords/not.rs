@@ -1,10 +1,11 @@
 use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::CompilationResult,
     paths::{InstancePath, JSONPointer},
     schema_node::SchemaNode,
-    validator::{format_validators, Validate},
+    validator::{format_validators, Location, Validate},
 };
 use serde_json::{Map, Value};
 
@@ -31,6 +32,8 @@ impl NotValidator {
 }
 
 impl Validate for NotValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         !self.node.is_valid(instance)
     }

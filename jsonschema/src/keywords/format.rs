@@ -10,10 +10,11 @@ use uuid::Uuid;
 use crate::{
     compilation::context::CompilationContext,
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::{pattern, CompilationResult},
     paths::{InstancePath, JSONPointer},
     primitive_type::PrimitiveType,
-    validator::Validate,
+    validator::{Location, Validate},
     Draft,
 };
 
@@ -62,6 +63,8 @@ macro_rules! format_validator {
 
 macro_rules! validate {
     ($format:expr) => {
+        get_location_from_path!();
+
         fn validate<'instance>(
             &self,
             instance: &'instance Value,
@@ -393,6 +396,8 @@ impl core::fmt::Display for CustomFormatValidator {
 }
 
 impl Validate for CustomFormatValidator {
+    get_location_from_path!();
+
     fn validate<'instance>(
         &self,
         instance: &'instance Value,

@@ -1,10 +1,11 @@
 use crate::{
     compilation::context::CompilationContext,
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::CompilationResult,
     paths::{InstancePath, JSONPointer},
     primitive_type::PrimitiveType,
-    validator::Validate,
+    validator::{Location, Validate},
 };
 use serde_json::{Map, Value};
 
@@ -43,6 +44,8 @@ impl NullableValidator {
 }
 
 impl Validate for NullableValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         instance.is_null()
     }

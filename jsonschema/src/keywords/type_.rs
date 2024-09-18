@@ -1,9 +1,10 @@
 use crate::{
     compilation::context::CompilationContext,
     error::{error, no_error, ErrorIterator, ValidationError},
+    get_location_from_path,
     keywords::CompilationResult,
     primitive_type::{PrimitiveType, PrimitiveTypesBitMap},
-    validator::Validate,
+    validator::{Location, Validate},
 };
 use serde_json::{json, Map, Number, Value};
 use std::convert::TryFrom;
@@ -50,6 +51,8 @@ impl MultipleTypesValidator {
 }
 
 impl Validate for MultipleTypesValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         match instance {
             Value::Array(_) => self.types.contains_type(PrimitiveType::Array),
@@ -107,6 +110,8 @@ impl NullTypeValidator {
 }
 
 impl Validate for NullTypeValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         instance.is_null()
     }
@@ -146,6 +151,8 @@ impl BooleanTypeValidator {
 }
 
 impl Validate for BooleanTypeValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         instance.is_boolean()
     }
@@ -185,6 +192,8 @@ impl StringTypeValidator {
 }
 
 impl Validate for StringTypeValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         instance.is_string()
     }
@@ -224,6 +233,8 @@ impl ArrayTypeValidator {
 }
 
 impl Validate for ArrayTypeValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         instance.is_array()
     }
@@ -264,6 +275,8 @@ impl ObjectTypeValidator {
 }
 
 impl Validate for ObjectTypeValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         instance.is_object()
     }
@@ -303,6 +316,8 @@ impl NumberTypeValidator {
 }
 
 impl Validate for NumberTypeValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         instance.is_number()
     }
@@ -340,6 +355,8 @@ impl IntegerTypeValidator {
 }
 
 impl Validate for IntegerTypeValidator {
+    get_location_from_path!();
+
     fn is_valid(&self, instance: &Value) -> bool {
         if let Value::Number(num) = instance {
             is_integer(num)
