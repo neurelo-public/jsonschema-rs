@@ -157,7 +157,7 @@ fn find_best_match(mut outputs: Vec<BasicOutput<'_>>) -> BasicOutput<'_> {
             BasicOutput::Valid(_) => None,
             BasicOutput::Invalid(v) => Some(v),
         })
-        .for_each(|v| {});
+        .for_each(|v| todo!());
 
     best_match.unwrap_or(outputs.remove(0))
 }
