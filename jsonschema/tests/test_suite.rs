@@ -177,10 +177,10 @@ fn test_instance_path() {
             let schema = JSONSchema::options()
                 .with_meta_schemas()
                 .compile(raw_schema)
-                .unwrap_or_else(|_| {
+                .unwrap_or_else(|e| {
                     panic!(
-                        "Valid schema. File: {}; Suite ID: {}; Schema: {}",
-                        filename, suite_id, raw_schema
+                        "Valid schema. File: {}; Suite ID: {}; Schema: {}; {}",
+                        filename, suite_id, raw_schema, e
                     )
                 });
             for test_data in item["tests"].as_array().expect("Valid array") {
@@ -192,21 +192,19 @@ fn test_instance_path() {
                     .map(|value| value.as_str().expect("A string"))
                     .collect();
                 let instance = &data[suite_id]["tests"][test_id]["data"];
-                let error = schema
-                    .validate(instance)
+                let result = schema.validate(instance);
+                let error = result
                     .expect_err(&format!(
-                        "File: {}; Suite ID: {}; Test ID: {}",
-                        filename, suite_id, test_id
+                        "File: {}; Suite ID: {}; Test ID: {}; Got: {:?}",
+                        filename, suite_id, test_id, instance_path
                     ))
                     .next()
                     .expect("Validation error");
+                let error_path = error.instance_path.into_vec();
                 assert_eq!(
-                    error.instance_path.into_vec(),
-                    instance_path,
-                    "File: {}; Suite ID: {}; Test ID: {}",
-                    filename,
-                    suite_id,
-                    test_id
+                    error_path, instance_path,
+                    "File: {}; Suite ID: {}; Test ID: {}; Expected: {:?}; Got: {:?}",
+                    filename, suite_id, test_id, error_path, instance_path
                 )
             }
         }

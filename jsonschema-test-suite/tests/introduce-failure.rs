@@ -1,6 +1,6 @@
 use json_schema_test_suite::{json_schema_test_suite, TestCase};
 
-#[json_schema_test_suite("path/to/JSON-Schema-Test-Suite/repository", "draft7", {"ref_0_0", r"optional_format_regex_0_\d+"})]
+#[json_schema_test_suite("../jsonschema/tests/suite", "draft7", {"ref_0_0", r"optional_format_regex_0_\d+"})]
 fn no_op_test_with_some_failures(server_address: &str, test_case: TestCase) {
     if test_case.name == "ref_0_0" {
         // Test that failure is properly ignored via the macro argument
