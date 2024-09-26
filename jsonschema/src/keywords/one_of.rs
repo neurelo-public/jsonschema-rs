@@ -122,7 +122,8 @@ impl Validate for OneOfValidator {
         }
 
         if !failures.is_empty() {
-            todo!();
+            let best_match_idx = find_best_match(&failures);
+            failures.remove(best_match_idx)
         } else {
             unreachable!("compilation should fail for oneOf with no subschemas")
         }
@@ -148,18 +149,23 @@ pub(crate) fn compile<'a>(
     Some(OneOfValidator::compile(schema, context))
 }
 
-fn find_best_match(mut outputs: Vec<BasicOutput<'_>>) -> BasicOutput<'_> {
-    let best_match = None;
+fn find_best_match(outputs: &[PartialApplication<'_>]) -> usize {
+    let mut best_match_count = None;
+    let mut best_match_idx = None;
 
-    outputs
-        .iter()
-        .filter_map(|v| match v {
-            BasicOutput::Valid(_) => None,
-            BasicOutput::Invalid(v) => Some(v),
-        })
-        .for_each(|v| todo!());
+    outputs.iter().enumerate().for_each(|(idx, v)| {
+        if let PartialApplication::Invalid { matches_count, .. } = v {
+            if best_match_count.is_none() {
+                best_match_count = Some(matches_count);
+                best_match_idx = Some(idx);
+            } else if best_match_count.map_or(false, |x| x < matches_count) {
+                best_match_count = Some(matches_count);
+                best_match_idx = Some(idx);
+            }
+        }
+    });
 
-    best_match.unwrap_or(outputs.remove(0))
+    best_match_idx.unwrap_or(0)
 }
 
 #[cfg(test)]
@@ -172,5 +178,29 @@ mod tests {
     #[test_case(&json!({"oneOf": [{"type": "string"}, {"maxLength": 3}]}), &json!(""), "/oneOf")]
     fn schema_path(schema: &Value, instance: &Value, expected: &str) {
         tests_util::assert_schema_path(schema, instance, expected)
+    }
+
+    #[test]
+    fn is_not_valid() {
+        let schema = tests_util::compile_schema(&json!({
+            "oneOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "env": {
+                            "type": "string"
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            ]
+        }));
+
+        let res = schema.apply(&json!({"env": 1})).basic();
+
+        dbg!(res);
     }
 }

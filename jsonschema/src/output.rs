@@ -153,12 +153,16 @@ impl<'a> From<PartialApplication<'a>> for BasicOutput<'a> {
                     )
                 }
 
-                let child_output: BasicOutput = child_results.into_iter().map(|v| v.into()).sum();
+                for child_result in child_results {
+                    let child_output: BasicOutput = child_result.into();
 
-                let mut result = BasicOutput::Valid(all_annotations);
-                result += child_output;
+                    match child_output {
+                        BasicOutput::Valid(annotations) => all_annotations.extend(annotations),
+                        BasicOutput::Invalid(_) => {}
+                    }
+                }
 
-                result
+                BasicOutput::Valid(all_annotations)
             }
             PartialApplication::Invalid {
                 errors,
@@ -180,12 +184,16 @@ impl<'a> From<PartialApplication<'a>> for BasicOutput<'a> {
                     )
                 }
 
-                let child_output: BasicOutput = child_results.into_iter().map(|v| v.into()).sum();
+                for child_result in child_results {
+                    let child_output: BasicOutput = child_result.into();
 
-                let mut result = BasicOutput::Invalid(all_errors);
-                result += child_output;
+                    match child_output {
+                        BasicOutput::Invalid(errors) => all_errors.extend(errors),
+                        BasicOutput::Valid(_) => {}
+                    }
+                }
 
-                result
+                BasicOutput::Invalid(all_errors)
             }
         }
     }

@@ -128,6 +128,10 @@ pub(crate) mod tests_util {
     use crate::ValidationError;
     use serde_json::Value;
 
+    pub(crate) fn compile_schema(schema: &Value) -> JSONSchema {
+        JSONSchema::compile(schema).unwrap()
+    }
+
     fn is_not_valid_inner(compiled: &JSONSchema, instance: &Value) {
         assert!(
             !compiled.is_valid(instance),

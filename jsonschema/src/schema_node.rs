@@ -199,13 +199,8 @@ impl SchemaNode {
         let mut nullable_error_results = VecDeque::new();
 
         #[cfg(feature = "nullable")]
-        for (path, validator) in nullable {
-            let path = self.relative_path.extend_with(&[path]);
-            let absolute_path = self
-                .absolute_path
-                .clone()
-                .map(|p| p.with_path(path.to_string().as_str()));
-            match validator.apply(instance, location) {
+        for (_, validator) in nullable {
+            match validator.apply(instance, instance_path) {
                 application @ PartialApplication::Valid { .. } => {
                     return application;
                 }
@@ -215,12 +210,7 @@ impl SchemaNode {
             }
         }
 
-        for (path, validator) in path_and_validators {
-            let path = self.relative_path.extend_with(&[path]);
-            let absolute_path = self
-                .absolute_path
-                .clone()
-                .map(|p| p.with_path(path.to_string().as_str()));
+        for (_, validator) in path_and_validators {
             match validator.apply(instance, instance_path) {
                 application @ PartialApplication::Valid { .. } => {
                     success_results.push_back(application);

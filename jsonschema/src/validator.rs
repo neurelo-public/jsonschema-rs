@@ -125,7 +125,7 @@ impl Location {
 /// The result of applying a validator to an instance. As explained in the documentation for
 /// `Validate::apply` this is a "partial" result because it does not include information about
 /// where the error or annotation occurred.
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum PartialApplication<'a> {
     Valid {
         /// Location that produced this partial application
@@ -213,12 +213,16 @@ impl<'a> PartialApplication<'a> {
     pub(crate) fn mark_errored(&mut self, error: ErrorDescription) {
         match self {
             Self::Invalid { errors, .. } => errors.push(error),
-            Self::Valid { .. } => {
+            Self::Valid {
+                child_results,
+                location,
+                ..
+            } => {
                 *self = Self::Invalid {
-                    location: self.location().clone(),
+                    location: location.clone(),
                     errors: vec![error],
                     child_results: VecDeque::new(),
-                    matches_count: 1,
+                    matches_count: child_results.iter().count(),
                 }
             }
         }
@@ -250,22 +254,28 @@ impl<'a> AddAssign for PartialApplication<'a> {
                     location: location_rhs,
                     errors: errors_rhs,
                     child_results: child_results_rhs,
-                    matches_count: matches_count_rhs
-                        + child_results.iter().filter(|c| c.is_valid()).count(),
+                    matches_count: matches_count_rhs + child_results.iter().count(),
                 }
             }
             (
                 PartialApplication::Invalid { matches_count, .. },
                 PartialApplication::Valid { child_results, .. },
             ) => {
-                *matches_count += child_results.iter().filter(|c| c.is_valid()).count();
+                *matches_count += child_results.iter().count();
             }
             (
-                PartialApplication::Invalid { errors, .. },
                 PartialApplication::Invalid {
-                    errors: errors_rhs, ..
+                    errors,
+                    matches_count,
+                    ..
+                },
+                PartialApplication::Invalid {
+                    errors: errors_rhs,
+                    matches_count: matches_count_rhs,
+                    ..
                 },
             ) => {
+                *matches_count += matches_count_rhs;
                 errors.extend(errors_rhs);
             }
         }
