@@ -131,7 +131,7 @@ impl Validate for AdditionalPropertiesValidator {
                 result += self.node.apply(value, &path);
                 matched_props.push(name.clone());
             }
-            result.annotate(serde_json::Value::from(matched_props).into());
+            result.annotate(Value::from(matched_props).into());
             result
         } else {
             PartialApplication::valid_empty(self.get_location(instance_path))
@@ -442,7 +442,7 @@ impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesNotEmptyValida
                 }
             }
             if !matched_propnames.is_empty() {
-                result.annotate(serde_json::Value::from(matched_propnames).into());
+                result.annotate(Value::from(matched_propnames).into());
             }
         }
 
@@ -586,11 +586,11 @@ impl Validate for AdditionalPropertiesWithPatternsValidator {
             if !pattern_matched_propnames.is_empty() {
                 result += PartialApplication::valid(
                     self.get_location(instance_path),
-                    serde_json::Value::from(pattern_matched_propnames).into(),
+                    Some(Value::from(pattern_matched_propnames).into()),
                 );
             }
             if !additional_matched_propnames.is_empty() {
-                result.annotate(serde_json::Value::from(additional_matched_propnames).into())
+                result.annotate(Value::from(additional_matched_propnames).into())
             }
         }
 
@@ -729,7 +729,7 @@ impl Validate for AdditionalPropertiesWithPatternsFalseValidator {
             if !pattern_matched_props.is_empty() {
                 result += PartialApplication::valid(
                     self.get_location(instance_path),
-                    serde_json::Value::from(pattern_matched_props).into(),
+                    Some(Value::from(pattern_matched_props).into()),
                 );
             }
             if !unexpected.is_empty() {
@@ -931,7 +931,7 @@ impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesWithPatternsNo
                     }
                 }
             }
-            result.annotate(serde_json::Value::from(additional_matches).into());
+            result.annotate(Value::from(additional_matches).into());
         }
 
         result

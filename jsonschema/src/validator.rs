@@ -6,7 +6,7 @@ use crate::{
     schema_node::SchemaNode,
 };
 use serde_json::Value;
-use std::{collections::VecDeque, fmt, iter::Sum, ops::AddAssign};
+use std::{cmp::Ordering, collections::VecDeque, fmt, iter::Sum, ops::AddAssign};
 
 /// The Validate trait represents a predicate over some JSON value. Some validators are very simple
 /// predicates such as "a value which is a string", whereas others may be much more complex,
@@ -122,6 +122,20 @@ impl Location {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Default)]
+pub(crate) struct ApplicationStats {
+    /// If a const or enum matches the value
+    matches_enum: bool,
+    /// Keep track of possible const or enum values
+    possible_enums: Vec<String>,
+    /// Property name matches
+    properties_matches: usize,
+    /// Property and value matches
+    properties_value_matches: usize,
+    /// The value of a property matches an enum or a const
+    primary_value_matches: usize,
+}
+
 /// The result of applying a validator to an instance. As explained in the documentation for
 /// `Validate::apply` this is a "partial" result because it does not include information about
 /// where the error or annotation occurred.
@@ -134,6 +148,8 @@ pub(crate) enum PartialApplication<'a> {
         annotations: Option<Annotations<'a>>,
         /// Any outputs produced by validators which are children of this validator
         child_results: VecDeque<PartialApplication<'a>>,
+        /// Stats that will be used to figure out best match
+        stats: ApplicationStats,
     },
     Invalid {
         /// Location that produced this partial application
@@ -142,8 +158,8 @@ pub(crate) enum PartialApplication<'a> {
         errors: Vec<ErrorDescription>,
         /// Any error outputs produced by child validators of this validator
         child_results: VecDeque<PartialApplication<'a>>,
-        /// Valid instances count to optimize error generation by picking best match
-        matches_count: usize,
+        /// Stats that will be used to figure out best match
+        stats: ApplicationStats,
     },
 }
 
@@ -151,12 +167,13 @@ impl<'a> PartialApplication<'a> {
     /// Create an empty `PartialApplication` which is valid
     pub(crate) fn valid(
         location: Location,
-        annotations: Annotations<'a>,
+        annotations: Option<Annotations<'a>>,
     ) -> PartialApplication<'a> {
         PartialApplication::Valid {
             location,
-            annotations: Some(annotations),
+            annotations,
             child_results: VecDeque::new(),
+            stats: ApplicationStats::default(),
         }
     }
 
@@ -166,6 +183,21 @@ impl<'a> PartialApplication<'a> {
             location,
             annotations: None,
             child_results: VecDeque::new(),
+            stats: ApplicationStats::default(),
+        }
+    }
+
+    /// Create  `PartialApplication` which is invalid
+    pub(crate) fn invalid(
+        location: Location,
+        errors: Vec<ErrorDescription>,
+        child_results: VecDeque<PartialApplication<'a>>,
+    ) -> PartialApplication<'a> {
+        PartialApplication::Invalid {
+            errors,
+            location,
+            child_results: child_results,
+            stats: ApplicationStats::default(),
         }
     }
 
@@ -174,12 +206,7 @@ impl<'a> PartialApplication<'a> {
         location: Location,
         errors: Vec<ErrorDescription>,
     ) -> PartialApplication<'a> {
-        PartialApplication::Invalid {
-            errors,
-            location,
-            child_results: VecDeque::new(),
-            matches_count: 0,
-        }
+        Self::invalid(location, errors, VecDeque::new())
     }
 
     pub(crate) fn location(&self) -> &Location {
@@ -214,18 +241,50 @@ impl<'a> PartialApplication<'a> {
         match self {
             Self::Invalid { errors, .. } => errors.push(error),
             Self::Valid {
-                child_results,
-                location,
-                ..
+                location, stats, ..
             } => {
                 *self = Self::Invalid {
                     location: location.clone(),
                     errors: vec![error],
                     child_results: VecDeque::new(),
-                    matches_count: child_results.iter().count(),
+                    stats: std::mem::take(stats),
                 }
             }
         }
+    }
+}
+
+impl<'a> AddAssign for ApplicationStats {
+    fn add_assign(&mut self, rhs: Self) {
+        self.matches_enum = rhs.matches_enum;
+        self.primary_value_matches += rhs.primary_value_matches;
+        self.properties_matches += rhs.properties_matches;
+        self.properties_value_matches += rhs.properties_value_matches;
+    }
+}
+
+impl<'a> PartialOrd for ApplicationStats {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match self.matches_enum.partial_cmp(&other.matches_enum) {
+            Some(Ordering::Equal) => {}
+            ord => return ord,
+        }
+        match self
+            .primary_value_matches
+            .partial_cmp(&other.primary_value_matches)
+        {
+            Some(Ordering::Equal) => {}
+            ord => return ord,
+        }
+        match self
+            .properties_value_matches
+            .partial_cmp(&other.properties_value_matches)
+        {
+            Some(Ordering::Equal) => {}
+            ord => return ord,
+        }
+        self.properties_matches
+            .partial_cmp(&other.properties_matches)
     }
 }
 
@@ -233,51 +292,77 @@ impl<'a> AddAssign for PartialApplication<'a> {
     fn add_assign(&mut self, rhs: Self) {
         match (&mut *self, rhs) {
             (
-                PartialApplication::Valid { child_results, .. },
+                PartialApplication::Valid {
+                    child_results,
+                    stats,
+                    ..
+                },
                 PartialApplication::Valid {
                     child_results: child_results_rhs,
+                    stats: stats_rhs,
                     ..
                 },
             ) => {
+                *stats += stats_rhs;
                 child_results.extend(child_results_rhs);
             }
             (
-                PartialApplication::Valid { child_results, .. },
+                PartialApplication::Valid { stats, .. },
                 PartialApplication::Invalid {
                     location: location_rhs,
                     errors: errors_rhs,
                     child_results: child_results_rhs,
-                    matches_count: matches_count_rhs,
+                    stats: stats_rhs,
                 },
             ) => {
+                *stats += stats_rhs;
                 *self = PartialApplication::Invalid {
                     location: location_rhs,
                     errors: errors_rhs,
                     child_results: child_results_rhs,
-                    matches_count: matches_count_rhs + child_results.iter().count(),
+                    stats: std::mem::take(stats),
                 }
             }
             (
-                PartialApplication::Invalid { matches_count, .. },
-                PartialApplication::Valid { child_results, .. },
+                PartialApplication::Invalid { stats, .. },
+                PartialApplication::Valid {
+                    stats: stats_rhs, ..
+                },
             ) => {
-                *matches_count += child_results.iter().count();
+                *stats += stats_rhs;
             }
             (
-                PartialApplication::Invalid {
-                    errors,
-                    matches_count,
-                    ..
-                },
+                PartialApplication::Invalid { errors, stats, .. },
                 PartialApplication::Invalid {
                     errors: errors_rhs,
-                    matches_count: matches_count_rhs,
+                    stats: stats_rhs,
                     ..
                 },
             ) => {
-                *matches_count += matches_count_rhs;
+                *stats += stats_rhs;
                 errors.extend(errors_rhs);
             }
+        }
+    }
+}
+
+impl<'a> PartialOrd for PartialApplication<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (
+                Self::Valid { stats, .. },
+                Self::Valid {
+                    stats: other_stats, ..
+                },
+            )
+            | (
+                PartialApplication::Invalid { stats, .. },
+                PartialApplication::Invalid {
+                    stats: other_stats, ..
+                },
+            ) => stats.partial_cmp(other_stats),
+            (_, PartialApplication::Valid { .. }) => Some(Ordering::Less),
+            (PartialApplication::Valid { .. }, _) => Some(Ordering::Greater),
         }
     }
 }

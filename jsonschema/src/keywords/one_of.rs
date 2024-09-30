@@ -1,9 +1,10 @@
+use std::cmp::Ordering;
+
 use crate::{
     compilation::{compile_validators, context::CompilationContext},
     error::{error, no_error, ErrorIterator, ValidationError},
     get_location_from_path,
     keywords::CompilationResult,
-    output::BasicOutput,
     paths::{InstancePath, JSONPointer},
     primitive_type::PrimitiveType,
     schema_node::SchemaNode,
@@ -122,8 +123,9 @@ impl Validate for OneOfValidator {
         }
 
         if !failures.is_empty() {
-            let best_match_idx = find_best_match(&failures);
-            failures.remove(best_match_idx)
+            failures.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
+            dbg!(&failures);
+            failures.pop().unwrap()
         } else {
             unreachable!("compilation should fail for oneOf with no subschemas")
         }
@@ -147,25 +149,6 @@ pub(crate) fn compile<'a>(
     context: &CompilationContext,
 ) -> Option<CompilationResult<'a>> {
     Some(OneOfValidator::compile(schema, context))
-}
-
-fn find_best_match(outputs: &[PartialApplication<'_>]) -> usize {
-    let mut best_match_count = None;
-    let mut best_match_idx = None;
-
-    outputs.iter().enumerate().for_each(|(idx, v)| {
-        if let PartialApplication::Invalid { matches_count, .. } = v {
-            if best_match_count.is_none() {
-                best_match_count = Some(matches_count);
-                best_match_idx = Some(idx);
-            } else if best_match_count.map_or(false, |x| x < matches_count) {
-                best_match_count = Some(matches_count);
-                best_match_idx = Some(idx);
-            }
-        }
-    });
-
-    best_match_idx.unwrap_or(0)
 }
 
 #[cfg(test)]

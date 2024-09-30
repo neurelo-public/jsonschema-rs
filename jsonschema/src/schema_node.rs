@@ -151,7 +151,7 @@ impl SchemaNode {
     ) -> bool
     where
         I: Iterator<Item = (P, &'a Box<dyn Validate + Send + Sync + 'a>)> + 'a,
-        P: Into<crate::paths::PathChunk> + std::fmt::Display,
+        P: Into<crate::paths::PathChunk> + fmt::Display,
     {
         let path_and_validators: Vec<_> = path_and_validators.map(|(p, v)| (p.into(), v)).collect();
 
@@ -184,7 +184,7 @@ impl SchemaNode {
     ) -> PartialApplication<'a>
     where
         I: Iterator<Item = (P, &'a Box<dyn Validate + Send + Sync + 'a>)> + 'a,
-        P: Into<crate::paths::PathChunk> + std::fmt::Display,
+        P: Into<crate::paths::PathChunk> + fmt::Display,
     {
         let mut success_results = VecDeque::new();
         let mut error_results = VecDeque::new();
@@ -222,20 +222,11 @@ impl SchemaNode {
         }
 
         if error_results.is_empty() {
-            PartialApplication::Valid {
-                annotations,
-                location: self.get_location(instance_path),
-                child_results: success_results,
-            }
+            PartialApplication::valid(self.get_location(instance_path), annotations)
         } else {
             #[cfg(feature = "nullable")]
             error_results.append(&mut nullable_error_results);
-            PartialApplication::Invalid {
-                errors: Vec::new(),
-                location: self.get_location(instance_path),
-                child_results: error_results,
-                matches_count: success_results.len(),
-            }
+            PartialApplication::invalid(self.get_location(instance_path), vec![], error_results)
         }
     }
 }
@@ -293,11 +284,7 @@ impl Validate for SchemaNode {
                 if let Some(validator) = validator {
                     validator.apply(instance, instance_path)
                 } else {
-                    PartialApplication::Valid {
-                        annotations: None,
-                        location: self.get_location(instance_path),
-                        child_results: VecDeque::new(),
-                    }
+                    PartialApplication::valid_empty(self.get_location(instance_path))
                 }
             }
             NodeValidators::Keyword(ref kvals) => {

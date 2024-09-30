@@ -138,6 +138,7 @@ impl<'a> From<PartialApplication<'a>> for BasicOutput<'a> {
                 location,
                 annotations,
                 child_results,
+                ..
             } => {
                 let mut all_annotations = VecDeque::new();
 
