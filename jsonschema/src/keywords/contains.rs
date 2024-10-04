@@ -62,23 +62,22 @@ impl Validate for ContainsValidator {
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
+
         if let Value::Array(items) = instance {
-            let mut results = Vec::with_capacity(items.len());
             let mut indices = Vec::new();
             for (idx, item) in items.iter().enumerate() {
                 let path = instance_path.push(idx);
                 let result = self.node.apply(item, &path);
                 if result.is_valid() {
                     indices.push(idx);
-                    results.push(result);
                 }
             }
-            let mut result: PartialApplication = results.into_iter().sum();
             if indices.is_empty() {
                 result.mark_errored(
                     ValidationError::contains(
@@ -89,14 +88,13 @@ impl Validate for ContainsValidator {
                     .into(),
                 );
             } else {
-                result.annotate(serde_json::Value::from(indices).into());
+                result.annotate(Value::from(indices).into());
             }
-            result
         } else {
-            let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
-            result.annotate(serde_json::Value::Array(Vec::new()).into());
-            result
+            result.annotate(Value::Array(Vec::new()).into());
         }
+
+        result
     }
 }
 

@@ -59,16 +59,15 @@ impl Validate for IfThenValidator {
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         let mut if_result = self.schema.apply(instance, instance_path);
         if if_result.is_valid() {
-            let then_result = self.then_schema.apply(instance, instance_path);
-            if_result += then_result;
-            if_result.into()
+            if_result.merge(&mut self.then_schema.apply(instance, instance_path));
+            if_result
         } else {
             PartialApplication::valid_empty(self.get_location(instance_path))
         }
@@ -136,11 +135,11 @@ impl Validate for IfElseValidator {
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         let if_result = self.schema.apply(instance, instance_path);
         if if_result.is_valid() {
             if_result.into()
@@ -218,17 +217,17 @@ impl Validate for IfThenElseValidator {
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         let mut if_result = self.schema.apply(instance, instance_path);
         if if_result.is_valid() {
-            if_result += self.then_schema.apply(instance, instance_path);
-            if_result.into()
+            if_result.merge(&mut self.then_schema.apply(instance, instance_path));
+            if_result
         } else {
-            self.else_schema.apply(instance, instance_path).into()
+            self.else_schema.apply(instance, instance_path)
         }
     }
 }

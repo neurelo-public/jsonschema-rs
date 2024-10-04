@@ -69,26 +69,29 @@ impl Validate for AnyOfValidator {
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
         let mut successes = Vec::new();
         let mut failures = Vec::new();
         for node in &self.schemas {
-            let result = node.apply(instance, instance_path);
-            if result.is_valid() {
-                successes.push(result);
+            let application = node.apply(instance, instance_path);
+            if application.is_valid() {
+                successes.push(application);
             } else {
-                failures.push(result);
+                failures.push(application);
             }
         }
         if successes.is_empty() {
-            failures.into_iter().sum()
+            failures.into_iter().for_each(|mut f| result.merge(&mut f));
         } else {
-            successes.into_iter().sum()
+            successes.into_iter().for_each(|mut s| result.merge(&mut s));
         }
+
+        result
     }
 }
 

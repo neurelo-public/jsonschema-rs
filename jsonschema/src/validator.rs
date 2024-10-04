@@ -1,12 +1,13 @@
 use crate::{
     error::ErrorIterator,
     keywords::BoxedValidator,
-    output::{Annotations, ErrorDescription},
+    output::Annotations,
     paths::{AbsolutePath, InstancePath, JSONPointer},
     schema_node::SchemaNode,
+    ValidationError,
 };
 use serde_json::Value;
-use std::{cmp::Ordering, collections::VecDeque, fmt, iter::Sum, ops::AddAssign};
+use std::{cmp::Ordering, collections::VecDeque, fmt};
 
 /// The Validate trait represents a predicate over some JSON value. Some validators are very simple
 /// predicates such as "a value which is a string", whereas others may be much more complex,
@@ -79,15 +80,12 @@ pub(crate) trait Validate: Send + Sync + core::fmt::Display {
     ///
     /// `BasicOutput` also implements `Sum<BasicOutput>` and `FromIterator<BasicOutput<'a>> for PartialApplication<'a>`
     /// so you can use `sum()` and `collect()` in simple cases.
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
-        let errors: Vec<ErrorDescription> = self
-            .validate(instance, instance_path)
-            .map(ErrorDescription::from)
-            .collect();
+    ) -> PartialApplication<'instance> {
+        let errors: Vec<_> = self.validate(instance, instance_path).collect();
         if errors.is_empty() {
             PartialApplication::valid_empty(self.get_location(instance_path))
         } else {
@@ -105,10 +103,6 @@ pub(crate) struct Location {
 }
 
 impl Location {
-    pub(crate) fn root() -> Self {
-        Self::new(JSONPointer::default(), JSONPointer::default(), None)
-    }
-
     pub(crate) fn new(
         keyword_location: JSONPointer,
         instance_location: JSONPointer,
@@ -122,12 +116,12 @@ impl Location {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default)]
 pub(crate) struct ApplicationStats {
     /// If a const or enum matches the value
     matches_enum: bool,
     /// Keep track of possible const or enum values
-    possible_enums: Vec<String>,
+    possible_enums: Vec<Value>,
     /// Property name matches
     properties_matches: usize,
     /// Property and value matches
@@ -139,7 +133,7 @@ pub(crate) struct ApplicationStats {
 /// The result of applying a validator to an instance. As explained in the documentation for
 /// `Validate::apply` this is a "partial" result because it does not include information about
 /// where the error or annotation occurred.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub(crate) enum PartialApplication<'a> {
     Valid {
         /// Location that produced this partial application
@@ -155,7 +149,7 @@ pub(crate) enum PartialApplication<'a> {
         /// Location that produced this partial application
         location: Location,
         /// Errors which caused this schema to be invalid
-        errors: Vec<ErrorDescription>,
+        errors: Vec<ValidationError<'a>>,
         /// Any error outputs produced by child validators of this validator
         child_results: VecDeque<PartialApplication<'a>>,
         /// Stats that will be used to figure out best match
@@ -190,7 +184,7 @@ impl<'a> PartialApplication<'a> {
     /// Create  `PartialApplication` which is invalid
     pub(crate) fn invalid(
         location: Location,
-        errors: Vec<ErrorDescription>,
+        errors: Vec<ValidationError<'a>>,
         child_results: VecDeque<PartialApplication<'a>>,
     ) -> PartialApplication<'a> {
         PartialApplication::Invalid {
@@ -204,7 +198,7 @@ impl<'a> PartialApplication<'a> {
     /// Create an empty `PartialApplication` which is invalid
     pub(crate) fn invalid_empty(
         location: Location,
-        errors: Vec<ErrorDescription>,
+        errors: Vec<ValidationError<'a>>,
     ) -> PartialApplication<'a> {
         Self::invalid(location, errors, VecDeque::new())
     }
@@ -237,7 +231,7 @@ impl<'a> PartialApplication<'a> {
     /// Set the error that will be returned for the current validator. If this
     /// `PartialApplication` is valid then this method converts this application into
     /// `PartialApplication::Invalid`
-    pub(crate) fn mark_errored(&mut self, error: ErrorDescription) {
+    pub(crate) fn mark_errored(&mut self, error: ValidationError<'a>) {
         match self {
             Self::Invalid { errors, .. } => errors.push(error),
             Self::Valid {
@@ -252,14 +246,89 @@ impl<'a> PartialApplication<'a> {
             }
         }
     }
-}
 
-impl<'a> AddAssign for ApplicationStats {
-    fn add_assign(&mut self, rhs: Self) {
-        self.matches_enum = rhs.matches_enum;
-        self.primary_value_matches += rhs.primary_value_matches;
-        self.properties_matches += rhs.properties_matches;
-        self.properties_value_matches += rhs.properties_value_matches;
+    pub(crate) fn get_errors(&mut self) -> Vec<ValidationError<'a>> {
+        match self {
+            Self::Valid { .. } => vec![],
+            Self::Invalid { errors, .. } => std::mem::take(errors),
+        }
+    }
+
+    pub(crate) fn get_stats(&mut self) -> &mut ApplicationStats {
+        match self {
+            Self::Valid { stats, .. } => stats,
+            Self::Invalid { stats, .. } => stats,
+        }
+    }
+
+    pub(crate) fn merge(&mut self, other: &mut Self) {
+        for error in other.get_errors() {
+            self.mark_errored(error);
+        }
+
+        let stats = self.get_stats();
+        let other_stats = other.get_stats();
+
+        stats.properties_matches += other_stats.properties_matches;
+        stats.primary_value_matches += other_stats.primary_value_matches;
+    }
+
+    pub(crate) fn merge_enum_values(&mut self, other: &mut Self) {
+        let stats = self.get_stats();
+        let other_stats = other.get_stats();
+
+        if !stats.matches_enum
+            && !other_stats.matches_enum
+            && !stats.possible_enums.is_empty()
+            && !other_stats.possible_enums.is_empty()
+        {
+            stats
+                .possible_enums
+                .extend(other_stats.possible_enums.iter().cloned());
+        }
+    }
+
+    pub(crate) fn merge_property_match(&mut self, other: &mut Self) {
+        for error in other.get_errors() {
+            self.mark_errored(error);
+        }
+
+        let stats = self.get_stats();
+        let other_is_valid = other.is_valid();
+        let other_stats = other.get_stats();
+
+        stats.properties_matches += 1;
+        if other_stats.matches_enum || other_is_valid || other_stats.properties_matches > 0 {
+            stats.properties_value_matches += 1;
+        }
+        if other_stats.matches_enum
+            && !other_stats.possible_enums.is_empty()
+            && other_stats.possible_enums.len() == 1
+        {
+            stats.primary_value_matches += 1;
+        }
+        stats.matches_enum |= other_stats.matches_enum;
+    }
+
+    pub(crate) fn mark_valid_enum(&mut self) {
+        match self {
+            Self::Valid { stats, .. } => stats.matches_enum = true,
+            Self::Invalid { .. } => {}
+        }
+    }
+
+    pub(crate) fn mark_property_value_matches(&mut self) {
+        match self {
+            Self::Valid { stats, .. } => stats.properties_value_matches += 1,
+            Self::Invalid { stats, .. } => stats.properties_value_matches += 1,
+        }
+    }
+
+    pub(crate) fn add_possible_enum(&mut self, value: impl Into<Value>) {
+        match self {
+            Self::Valid { stats, .. } => stats.possible_enums.push(value.into()),
+            Self::Invalid { stats, .. } => stats.possible_enums.push(value.into()),
+        }
     }
 }
 
@@ -288,61 +357,9 @@ impl<'a> PartialOrd for ApplicationStats {
     }
 }
 
-impl<'a> AddAssign for PartialApplication<'a> {
-    fn add_assign(&mut self, rhs: Self) {
-        match (&mut *self, rhs) {
-            (
-                PartialApplication::Valid {
-                    child_results,
-                    stats,
-                    ..
-                },
-                PartialApplication::Valid {
-                    child_results: child_results_rhs,
-                    stats: stats_rhs,
-                    ..
-                },
-            ) => {
-                *stats += stats_rhs;
-                child_results.extend(child_results_rhs);
-            }
-            (
-                PartialApplication::Valid { stats, .. },
-                PartialApplication::Invalid {
-                    location: location_rhs,
-                    errors: errors_rhs,
-                    child_results: child_results_rhs,
-                    stats: stats_rhs,
-                },
-            ) => {
-                *stats += stats_rhs;
-                *self = PartialApplication::Invalid {
-                    location: location_rhs,
-                    errors: errors_rhs,
-                    child_results: child_results_rhs,
-                    stats: std::mem::take(stats),
-                }
-            }
-            (
-                PartialApplication::Invalid { stats, .. },
-                PartialApplication::Valid {
-                    stats: stats_rhs, ..
-                },
-            ) => {
-                *stats += stats_rhs;
-            }
-            (
-                PartialApplication::Invalid { errors, stats, .. },
-                PartialApplication::Invalid {
-                    errors: errors_rhs,
-                    stats: stats_rhs,
-                    ..
-                },
-            ) => {
-                *stats += stats_rhs;
-                errors.extend(errors_rhs);
-            }
-        }
+impl<'a> PartialEq for PartialApplication<'a> {
+    fn eq(&self, _: &Self) -> bool {
+        false
     }
 }
 
@@ -364,15 +381,6 @@ impl<'a> PartialOrd for PartialApplication<'a> {
             (_, PartialApplication::Valid { .. }) => Some(Ordering::Less),
             (PartialApplication::Valid { .. }, _) => Some(Ordering::Greater),
         }
-    }
-}
-
-impl<'a> Sum for PartialApplication<'a> {
-    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        iter.fold(Self::valid_empty(Location::root()), |mut acc, elem| {
-            acc += elem;
-            acc
-        })
     }
 }
 
@@ -425,6 +433,36 @@ pub(crate) fn format_key_value_validators(validators: &[(String, SchemaNode)]) -
         .map(|(name, node)| format!("{}: {}", name, format_validators(node.validators())))
         .collect::<Vec<String>>()
         .join(", ")
+}
+
+/// Apply and modify resulting application
+#[macro_export]
+macro_rules! apply_with_side_effect {
+    ($F:ident) => {
+        fn apply<'instance>(
+            &self,
+            instance: &'instance Value,
+            instance_path: &InstancePath,
+        ) -> PartialApplication<'instance> {
+            use crate::validator::PartialApplication;
+            use crate::ValidationError;
+
+            let errors: Vec<ValidationError> = self
+                .validate(instance, instance_path)
+                .map(ValidationError::from)
+                .collect();
+            if errors.is_empty() {
+                let mut application =
+                    PartialApplication::valid_empty(self.get_location(instance_path));
+
+                application.$F();
+
+                application
+            } else {
+                PartialApplication::invalid_empty(self.get_location(instance_path), errors)
+            }
+        }
+    };
 }
 
 /// Get the node location from the schema path

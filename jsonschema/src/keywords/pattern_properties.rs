@@ -88,11 +88,11 @@ impl Validate for PatternPropertiesValidator {
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
 
         if let Value::Object(item) = instance {
@@ -102,11 +102,11 @@ impl Validate for PatternPropertiesValidator {
                     if pattern.is_match(key).unwrap_or(false) {
                         let path = instance_path.push(key.clone());
                         matched_propnames.push(key.clone());
-                        result += node.apply(value, &path);
+                        result.merge_property_match(&mut node.apply(value, &path));
                     }
                 }
             }
-            result.annotate(serde_json::Value::from(matched_propnames).into());
+            result.annotate(Value::from(matched_propnames).into());
         }
 
         result
@@ -192,11 +192,11 @@ impl Validate for SingleValuePatternPropertiesValidator {
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
 
         if let Value::Object(item) = instance {
@@ -205,10 +205,10 @@ impl Validate for SingleValuePatternPropertiesValidator {
                 if self.pattern.is_match(key).unwrap_or(false) {
                     let path = instance_path.push(key.clone());
                     matched_propnames.push(key.clone());
-                    result += self.node.apply(value, &path);
+                    result.merge_property_match(&mut self.node.apply(value, &path));
                 }
             }
-            result.annotate(serde_json::Value::from(matched_propnames).into());
+            result.annotate(Value::from(matched_propnames).into());
         }
 
         result

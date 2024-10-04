@@ -5,7 +5,7 @@ use crate::{
     keywords::CompilationResult,
     paths::{InstancePath, JSONPointer},
     schema_node::SchemaNode,
-    validator::{format_validators, Location, PartialApplication, Validate},
+    validator::{format_validators, Location, Validate},
 };
 use serde_json::{Map, Value};
 
@@ -69,23 +69,6 @@ impl Validate for PropertyNamesObjectValidator {
             Box::new(errors.into_iter())
         } else {
             no_error()
-        }
-    }
-
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
-        instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
-        if let Value::Object(item) = instance {
-            item.keys()
-                .map(|key| {
-                    let wrapper = Value::String(key.to_string());
-                    self.node.apply(&wrapper, instance_path)
-                })
-                .sum()
-        } else {
-            PartialApplication::valid_empty(self.get_location(instance_path))
         }
     }
 }

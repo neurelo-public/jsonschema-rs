@@ -118,17 +118,18 @@ impl Validate for AdditionalPropertiesValidator {
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         if let Value::Object(item) = instance {
             let mut matched_props = Vec::with_capacity(item.len());
             let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
             for (name, value) in item.iter() {
                 let path = instance_path.push(name.to_string());
-                result += self.node.apply(value, &path);
+                let mut application = self.node.apply(value, &path);
+                result.merge_property_match(&mut application);
                 matched_props.push(name.clone());
             }
             result.annotate(Value::from(matched_props).into());
@@ -293,11 +294,11 @@ impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesNotEmptyFalseV
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
 
         if let Value::Object(item) = instance {
@@ -305,7 +306,8 @@ impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesNotEmptyFalseV
             for (property, value) in item {
                 if let Some((_name, node)) = self.properties.get_key_validator(property) {
                     let path = instance_path.push(property.clone());
-                    result += node.apply(value, &path);
+                    let mut application = node.apply(value, &path);
+                    result.merge_property_match(&mut application);
                 } else {
                     unexpected.push(property.clone())
                 }
@@ -421,11 +423,11 @@ impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesNotEmptyValida
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
 
         if let Value::Object(map) = instance {
@@ -435,9 +437,11 @@ impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesNotEmptyValida
                 if let Some((_name, property_validators)) =
                     self.properties.get_key_validator(property)
                 {
-                    result += property_validators.apply(value, &path);
+                    let mut application = property_validators.apply(value, &path);
+                    result.merge_property_match(&mut application);
                 } else {
-                    result += self.node.apply(value, &path);
+                    let mut application = self.node.apply(value, &path);
+                    result.merge_property_match(&mut application);
                     matched_propnames.push(property.clone());
                 }
             }
@@ -558,11 +562,11 @@ impl Validate for AdditionalPropertiesWithPatternsValidator {
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
 
         if let Value::Object(item) = instance {
@@ -575,19 +579,22 @@ impl Validate for AdditionalPropertiesWithPatternsValidator {
                     if pattern.is_match(property).unwrap_or(false) {
                         has_match = true;
                         pattern_matched_propnames.push(property.clone());
-                        result += node.apply(value, &path)
+                        let mut application = node.apply(value, &path);
+                        result.merge_property_match(&mut application);
                     }
                 }
                 if !has_match {
                     additional_matched_propnames.push(property.clone());
-                    result += self.node.apply(value, &path)
+                    let mut application = self.node.apply(value, &path);
+                    result.merge_property_match(&mut application);
                 }
             }
             if !pattern_matched_propnames.is_empty() {
-                result += PartialApplication::valid(
+                let mut application = PartialApplication::valid(
                     self.get_location(instance_path),
                     Some(Value::from(pattern_matched_propnames).into()),
                 );
+                result.merge_property_match(&mut application);
             }
             if !additional_matched_propnames.is_empty() {
                 result.annotate(Value::from(additional_matched_propnames).into())
@@ -702,11 +709,11 @@ impl Validate for AdditionalPropertiesWithPatternsFalseValidator {
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
 
         if let Value::Object(item) = instance {
@@ -719,7 +726,8 @@ impl Validate for AdditionalPropertiesWithPatternsFalseValidator {
                     if pattern.is_match(property).unwrap_or(false) {
                         has_match = true;
                         pattern_matched_props.push(property.clone());
-                        result += node.apply(value, &path);
+                        let mut application = node.apply(value, &path);
+                        result.merge_property_match(&mut application);
                     }
                 }
                 if !has_match {
@@ -727,10 +735,11 @@ impl Validate for AdditionalPropertiesWithPatternsFalseValidator {
                 }
             }
             if !pattern_matched_props.is_empty() {
-                result += PartialApplication::valid(
+                let mut application = PartialApplication::valid(
                     self.get_location(instance_path),
                     Some(Value::from(pattern_matched_props).into()),
                 );
+                result.merge_property_match(&mut application);
             }
             if !unexpected.is_empty() {
                 result.mark_errored(
@@ -899,11 +908,11 @@ impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesWithPatternsNo
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
 
         if let Value::Object(item) = instance {
@@ -911,10 +920,12 @@ impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesWithPatternsNo
             for (property, value) in item.iter() {
                 let path = instance_path.push(property.clone());
                 if let Some((_name, node)) = self.properties.get_key_validator(property) {
-                    result += node.apply(value, &path);
+                    let mut application = node.apply(value, &path);
+                    result.merge_property_match(&mut application);
                     for (pattern, node) in &self.patterns {
                         if pattern.is_match(property).unwrap_or(false) {
-                            result += node.apply(value, &path);
+                            let mut application = node.apply(value, &path);
+                            result.merge_property_match(&mut application);
                         }
                     }
                 } else {
@@ -922,12 +933,14 @@ impl<M: PropertiesValidatorsMap> Validate for AdditionalPropertiesWithPatternsNo
                     for (pattern, node) in &self.patterns {
                         if pattern.is_match(property).unwrap_or(false) {
                             has_match = true;
-                            result += node.apply(value, &path);
+                            let mut application = node.apply(value, &path);
+                            result.merge_property_match(&mut application);
                         }
                     }
                     if !has_match {
                         additional_matches.push(property.clone());
-                        result += self.node.apply(value, &path);
+                        let mut application = self.node.apply(value, &path);
+                        result.merge_property_match(&mut application);
                     }
                 }
             }
@@ -1091,11 +1104,11 @@ impl<M: PropertiesValidatorsMap> Validate
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
 
         if let Value::Object(item) = instance {
@@ -1104,10 +1117,12 @@ impl<M: PropertiesValidatorsMap> Validate
             for (property, value) in item.iter() {
                 let path = instance_path.push(property.clone());
                 if let Some((_name, node)) = self.properties.get_key_validator(property) {
-                    result += node.apply(value, &path);
+                    let mut application = node.apply(value, &path);
+                    result.merge_property_match(&mut application);
                     for (pattern, node) in &self.patterns {
                         if pattern.is_match(property).unwrap_or(false) {
-                            result += node.apply(value, &path);
+                            let mut application = node.apply(value, &path);
+                            result.merge_property_match(&mut application);
                         }
                     }
                 } else {
@@ -1115,7 +1130,8 @@ impl<M: PropertiesValidatorsMap> Validate
                     for (pattern, node) in &self.patterns {
                         if pattern.is_match(property).unwrap_or(false) {
                             has_match = true;
-                            result += node.apply(value, &path);
+                            let mut application = node.apply(value, &path);
+                            result.merge_property_match(&mut application);
                         }
                     }
                     if !has_match {

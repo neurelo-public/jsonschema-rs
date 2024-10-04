@@ -34,11 +34,11 @@ pub struct Output<'a, 'b> {
 }
 
 impl<'a, 'b> Output<'a, 'b> {
-    pub(crate) const fn new<'c, 'd>(
-        schema: &'c JSONSchema,
-        root_node: &'c SchemaNode,
-        instance: &'d serde_json::Value,
-    ) -> Output<'c, 'd> {
+    pub(crate) const fn new(
+        schema: &'a JSONSchema,
+        root_node: &'a SchemaNode,
+        instance: &'b serde_json::Value,
+    ) -> Output<'a, 'b> {
         Output {
             schema,
             root_node,
@@ -103,7 +103,7 @@ impl<'a, 'b> Output<'a, 'b> {
     /// }
     /// ```
     #[must_use]
-    pub fn basic(&self) -> BasicOutput<'a> {
+    pub fn basic(&self) -> BasicOutput {
         self.root_node
             .apply(self.instance, &InstancePath::new())
             .into()
@@ -177,10 +177,10 @@ impl<'a> From<PartialApplication<'a>> for BasicOutput<'a> {
                     all_errors.insert(
                         0,
                         OutputUnit::<ErrorDescription>::error(
-                            location.keyword_location.clone(),
-                            location.instance_location.clone(),
+                            error.schema_path.clone(),
+                            error.instance_path.clone(),
                             location.absolute_keyword_location.clone(),
-                            error,
+                            error.into(),
                         ),
                     )
                 }

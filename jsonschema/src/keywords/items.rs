@@ -122,29 +122,28 @@ impl Validate for ItemsObjectValidator {
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
+
         if let Value::Array(items) = instance {
-            let mut results = Vec::with_capacity(items.len());
             for (idx, item) in items.iter().enumerate() {
                 let path = instance_path.push(idx);
-                results.push(self.node.apply(item, &path));
+                result.merge_property_match(&mut self.node.apply(item, &path));
             }
-            let mut output: PartialApplication = results.into_iter().sum();
             // Per draft 2020-12 section https://json-schema.org/draft/2020-12/json-schema-core.html#rfc.section.10.3.1.2
             // we must produce an annotation with a boolean value indicating whether the subschema
             // was applied to any positions in the underlying array. Since the struct
             // `ItemsObjectValidator` is not used when prefixItems is defined, this is true if
             // there are any items in the instance.
             let schema_was_applied = !items.is_empty();
-            output.annotate(serde_json::json! {schema_was_applied}.into());
-            output
-        } else {
-            PartialApplication::valid_empty(self.get_location(instance_path))
+            result.annotate(serde_json::json! {schema_was_applied}.into());
         }
+
+        result
     }
 }
 
@@ -211,27 +210,26 @@ impl Validate for ItemsObjectSkipPrefixValidator {
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
+
         if let Value::Array(items) = instance {
-            let mut results = Vec::with_capacity(items.len().saturating_sub(self.skip_prefix));
             for (idx, item) in items.iter().skip(self.skip_prefix).enumerate() {
                 let path = instance_path.push(idx + self.skip_prefix);
-                results.push(self.node.apply(item, &path));
+                result.merge_property_match(&mut self.node.apply(item, &path));
             }
-            let mut output: PartialApplication = results.into_iter().sum();
             // Per draft 2020-12 section https://json-schema.org/draft/2020-12/json-schema-core.html#rfc.section.10.3.1.2
             // we must produce an annotation with a boolean value indicating whether the subschema
             // was applied to any positions in the underlying array.
             let schema_was_applied = items.len() > self.skip_prefix;
-            output.annotate(serde_json::json! {schema_was_applied}.into());
-            output
-        } else {
-            PartialApplication::valid_empty(self.get_location(instance_path))
+            result.annotate(serde_json::json! {schema_was_applied}.into());
         }
+
+        result
     }
 }
 

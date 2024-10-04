@@ -70,38 +70,36 @@ impl Validate for PrefixItemsValidator {
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
+
         if let Value::Array(items) = instance {
             if !items.is_empty() {
-                let validate_total = self.schemas.len();
-                let mut results = Vec::with_capacity(validate_total);
                 let mut max_index_applied = 0;
                 for (idx, (schema_node, item)) in self.schemas.iter().zip(items.iter()).enumerate()
                 {
                     let path = instance_path.push(idx);
-                    results.push(schema_node.apply(item, &path));
+                    result.merge_property_match(&mut schema_node.apply(item, &path));
                     max_index_applied = idx;
                 }
                 // Per draft 2020-12 section https://json-schema.org/draft/2020-12/json-schema-core.html#rfc.section.10.3.1.1
                 // we must produce an annotation with the largest index of the underlying
                 // array which the subschema was applied. The value MAY be a boolean true if
                 // a subschema was applied to every index of the instance.
-                let schema_was_applied: Value = if results.len() == items.len() {
+                let schema_was_applied: Value = if max_index_applied == items.len() - 1 {
                     true.into()
                 } else {
                     max_index_applied.into()
                 };
-                let mut output: PartialApplication = results.into_iter().sum();
-                output.annotate(schema_was_applied.into());
-                return output;
+                result.annotate(schema_was_applied.into());
             }
         }
 
-        PartialApplication::valid_empty(self.get_location(instance_path))
+        result
     }
 }
 

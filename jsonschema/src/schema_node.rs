@@ -2,7 +2,6 @@ use crate::{
     compilation::context::CompilationContext,
     error::ErrorIterator,
     keywords::BoxedValidator,
-    output::Annotations,
     paths::{AbsolutePath, InstancePath, JSONPointer},
     validator::{format_validators, Location, PartialApplication, Validate},
 };
@@ -175,13 +174,12 @@ impl SchemaNode {
     /// useful as a keyword schemanode has a set of validators keyed by their keywords, so the
     /// `Into<Pathchunk>` is a `String` whereas an array schemanode has an array of validators so
     /// the `Into<PathChunk>` is a `usize`
-    fn apply_subschemas<'a, I, P>(
-        &self,
-        instance: &serde_json::Value,
+    fn apply_subschemas<'a, 'instance, I, P>(
+        &'a self,
+        instance: &'instance serde_json::Value,
         instance_path: &InstancePath,
         path_and_validators: I,
-        annotations: Option<Annotations<'a>>,
-    ) -> PartialApplication<'a>
+    ) -> PartialApplication<'instance>
     where
         I: Iterator<Item = (P, &'a Box<dyn Validate + Send + Sync + 'a>)> + 'a,
         P: Into<crate::paths::PathChunk> + fmt::Display,
@@ -221,13 +219,20 @@ impl SchemaNode {
             }
         }
 
+        let mut result = PartialApplication::valid(self.get_location(instance_path), None);
         if error_results.is_empty() {
-            PartialApplication::valid(self.get_location(instance_path), annotations)
+            success_results
+                .into_iter()
+                .for_each(|mut v| result.merge_property_match(&mut v));
         } else {
             #[cfg(feature = "nullable")]
             error_results.append(&mut nullable_error_results);
-            PartialApplication::invalid(self.get_location(instance_path), vec![], error_results)
+            error_results
+                .into_iter()
+                .for_each(|mut v| result.merge_property_match(&mut v));
         }
+
+        result
     }
 }
 
@@ -271,14 +276,14 @@ impl Validate for SchemaNode {
         }
     }
 
-    fn apply<'a>(
+    fn apply<'a, 'b>(
         &'a self,
-        instance: &serde_json::Value,
+        instance: &'b serde_json::Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'b> {
         match self.validators {
             NodeValidators::Array { ref validators } => {
-                self.apply_subschemas(instance, instance_path, validators.iter().enumerate(), None)
+                self.apply_subschemas(instance, instance_path, validators.iter().enumerate())
             }
             NodeValidators::Boolean { ref validator } => {
                 if let Some(validator) = validator {
@@ -288,17 +293,11 @@ impl Validate for SchemaNode {
                 }
             }
             NodeValidators::Keyword(ref kvals) => {
-                let KeywordValidators {
-                    ref unmatched_keywords,
-                    ref validators,
-                } = **kvals;
-                let annotations: Option<Annotations<'a>> =
-                    unmatched_keywords.as_ref().map(Annotations::from);
+                let KeywordValidators { ref validators, .. } = **kvals;
                 self.apply_subschemas(
                     instance,
                     instance_path,
                     validators.iter().map(|(p, v)| (p.clone(), v)),
-                    annotations,
                 )
             }
         }

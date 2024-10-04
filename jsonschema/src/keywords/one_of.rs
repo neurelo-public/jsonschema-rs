@@ -98,11 +98,11 @@ impl Validate for OneOfValidator {
             ))
         }
     }
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         let mut failures = Vec::new();
         let mut successes = Vec::new();
         for node in &self.schemas {
@@ -118,13 +118,17 @@ impl Validate for OneOfValidator {
         } else if successes.len() > 1 {
             return PartialApplication::invalid_empty(
                 self.get_location(instance_path),
-                vec!["more than one subschema succeeded".into()],
+                vec![ValidationError::one_of_multiple_valid(
+                    self.schema_path.clone(),
+                    instance_path.into(),
+                    instance,
+                )],
             );
         }
 
         if !failures.is_empty() {
-            failures.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
             dbg!(&failures);
+            failures.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
             failures.pop().unwrap()
         } else {
             unreachable!("compilation should fail for oneOf with no subschemas")
@@ -182,7 +186,29 @@ mod tests {
             ]
         }));
 
-        let res = schema.apply(&json!({"env": 1})).basic();
+        let val = json!({"env": 1});
+        let res = schema.apply(&val);
+
+        dbg!(res);
+    }
+
+    #[test]
+    fn add_complexity() {
+        let schema = tests_util::compile_schema(
+            &serde_json::from_str(include_str!("../../../schemapsql.json")).unwrap(),
+        );
+
+        let val = json!({
+          "objects": {
+            "obj1": {
+              "properties": {
+                "prop1": {"type": "number", "format": "other"}
+              }
+            }
+          }
+        });
+        let res = schema.apply(&val);
+        let res = res.basic();
 
         dbg!(res);
     }

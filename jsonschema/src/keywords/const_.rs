@@ -3,7 +3,7 @@ use crate::{
     error::{error, no_error, ErrorIterator, ValidationError},
     get_location_from_path,
     keywords::{helpers, CompilationResult},
-    validator::{Location, Validate},
+    validator::{Location, PartialApplication, Validate},
 };
 use serde_json::{Map, Number, Value};
 use std::f64::EPSILON;
@@ -309,6 +309,24 @@ impl Validate for ConstStringValidator {
             &self.value == item
         } else {
             false
+        }
+    }
+
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
+        instance_path: &InstancePath,
+    ) -> PartialApplication<'instance> {
+        let errors: Vec<_> = self.validate(instance, instance_path).collect();
+        if errors.is_empty() {
+            let mut application = PartialApplication::valid_empty(self.get_location(instance_path));
+
+            application.mark_valid_enum();
+            application.add_possible_enum(self.value.clone());
+
+            application
+        } else {
+            PartialApplication::invalid_empty(self.get_location(instance_path), errors)
         }
     }
 }

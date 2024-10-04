@@ -85,11 +85,11 @@ impl Validate for PropertiesValidator {
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
 
         if let Value::Object(props) = instance {
@@ -98,10 +98,10 @@ impl Validate for PropertiesValidator {
                 if let Some(prop) = props.get(prop_name) {
                     let path = instance_path.push(prop_name.clone());
                     matched_props.push(prop_name.clone());
-                    result += node.apply(prop, &path);
+                    result.merge_property_match(&mut node.apply(prop, &path));
                 }
             }
-            result.annotate(serde_json::Value::from(matched_props).into());
+            result.annotate(Value::from(matched_props).into());
         }
 
         result

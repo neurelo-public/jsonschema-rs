@@ -110,15 +110,15 @@ impl Validate for RefValidator {
         ))
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         if let Err(err) = self.resolve_sub_nodes() {
             return PartialApplication::invalid_empty(
                 self.get_location(instance_path),
-                vec![err.into()],
+                vec![err.into_owned()],
             );
         }
 
@@ -136,7 +136,9 @@ impl Validate for RefValidator {
 
         PartialApplication::invalid_empty(
             self.get_location(instance_path),
-            vec!["Failed resolve reference".into()],
+            vec![ValidationError::invalid_reference(
+                self.reference.to_string(),
+            )],
         )
     }
 }

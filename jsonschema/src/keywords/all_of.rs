@@ -59,15 +59,19 @@ impl Validate for AllOfValidator {
         Box::new(errors.into_iter())
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
-        self.schemas
-            .iter()
-            .map(move |node| node.apply(instance, instance_path))
-            .sum::<PartialApplication<'_>>()
+    ) -> PartialApplication<'instance> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
+
+        for node in &self.schemas {
+            let mut application = node.apply(instance, instance_path);
+            result.merge(&mut application);
+        }
+
+        result
     }
 }
 
@@ -112,11 +116,11 @@ impl Validate for SingleValueAllOfValidator {
         self.node.validate(instance, instance_path)
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         self.node.apply(instance, instance_path).into()
     }
 }

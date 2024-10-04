@@ -393,11 +393,11 @@ impl Validate for UnevaluatedPropertiesValidator {
         }
     }
 
-    fn apply<'a>(
-        &'a self,
-        instance: &Value,
+    fn apply<'instance>(
+        &self,
+        instance: &'instance Value,
         instance_path: &InstancePath,
-    ) -> PartialApplication<'a> {
+    ) -> PartialApplication<'instance> {
         if let Value::Object(props) = instance {
             let mut output = BasicOutput::default();
             let mut unevaluated = vec![];
