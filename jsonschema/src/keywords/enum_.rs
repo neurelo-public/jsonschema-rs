@@ -74,19 +74,19 @@ impl Validate for EnumValidator {
         instance: &'instance Value,
         instance_path: &InstancePath,
     ) -> PartialApplication<'instance> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
+        self.items
+            .iter()
+            .for_each(|v: &Value| result.add_possible_enum(v.clone()));
+
         let errors: Vec<_> = self.validate(instance, instance_path).collect();
         if errors.is_empty() {
-            let mut application = PartialApplication::valid_empty(self.get_location(instance_path));
-
-            application.mark_valid_enum();
-            self.items
-                .iter()
-                .for_each(|v| application.add_possible_enum(v.clone()));
-
-            application
+            result.mark_valid_enum();
         } else {
-            PartialApplication::invalid_empty(self.get_location(instance_path), errors)
+            errors.into_iter().for_each(|e| result.mark_errored(e));
         }
+
+        result
     }
 }
 
@@ -155,17 +155,17 @@ impl Validate for SingleValueEnumValidator {
         instance: &'instance Value,
         instance_path: &InstancePath,
     ) -> PartialApplication<'instance> {
+        let mut result = PartialApplication::valid_empty(self.get_location(instance_path));
+        result.add_possible_enum(self.value.clone());
+
         let errors: Vec<_> = self.validate(instance, instance_path).collect();
         if errors.is_empty() {
-            let mut application = PartialApplication::valid_empty(self.get_location(instance_path));
-
-            application.mark_valid_enum();
-            application.add_possible_enum(self.value.clone());
-
-            application
+            result.mark_valid_enum();
         } else {
-            PartialApplication::invalid_empty(self.get_location(instance_path), errors)
+            errors.into_iter().for_each(|e| result.mark_errored(e));
         }
+
+        result
     }
 }
 

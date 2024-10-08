@@ -127,9 +127,19 @@ impl Validate for OneOfValidator {
         }
 
         if !failures.is_empty() {
-            dbg!(&failures);
-            failures.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
-            failures.pop().unwrap()
+            let mut best_match = failures.remove(0);
+
+            failures.into_iter().for_each(|mut current| {
+                if best_match < current {
+                    best_match = current;
+                } else if best_match == current {
+                    best_match.merge_enum_values(&mut current);
+                } else {
+                    // current best_match should not change if its better
+                }
+            });
+
+            best_match
         } else {
             unreachable!("compilation should fail for oneOf with no subschemas")
         }
@@ -188,8 +198,6 @@ mod tests {
 
         let val = json!({"env": 1});
         let res = schema.apply(&val);
-
-        dbg!(res);
     }
 
     #[test]
@@ -197,19 +205,21 @@ mod tests {
         let schema = tests_util::compile_schema(
             &serde_json::from_str(include_str!("../../../schemapsql.json")).unwrap(),
         );
+        let intance = serde_json::from_str(include_str!("../../../instancepsql.json")).unwrap();
 
-        let val = json!({
-          "objects": {
-            "obj1": {
-              "properties": {
-                "prop1": {"type": "number", "format": "other"}
-              }
-            }
-          }
-        });
-        let res = schema.apply(&val);
+        let res = schema.apply(&intance);
         let res = res.basic();
-
-        dbg!(res);
+        match res {
+            crate::output::BasicOutput::Invalid(v) => {
+                for e in v {
+                    println!(
+                        "{} \t\t {}",
+                        e.instance_location().to_string(),
+                        e.error_description().to_string()
+                    );
+                }
+            }
+            crate::output::BasicOutput::Valid(_) => {}
+        };
     }
 }

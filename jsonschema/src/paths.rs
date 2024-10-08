@@ -101,6 +101,16 @@ pub enum PathChunk {
     Keyword(&'static str),
 }
 
+impl PathChunk {
+    pub(crate) fn matches(&self, value: &str) -> bool {
+        match self {
+            PathChunk::Property(v) => **v == *value,
+            PathChunk::Keyword(v) => *v == value,
+            PathChunk::Index(_) => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct InstancePath<'a> {
     pub(crate) chunk: Option<PathChunk>,

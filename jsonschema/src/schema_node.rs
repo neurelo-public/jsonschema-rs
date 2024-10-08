@@ -189,9 +189,8 @@ impl SchemaNode {
         let path_and_validators = path_and_validators.map(|(p, v)| (p.into(), v));
 
         #[cfg(feature = "nullable")]
-        let (nullable, path_and_validators): (Vec<_>, Vec<_>) = path_and_validators.partition(
-            |(p, _)| matches!(p, crate::paths::PathChunk::Property(v) if v.as_ref() == "nullable"),
-        );
+        let (nullable, path_and_validators): (Vec<_>, Vec<_>) =
+            path_and_validators.partition(|(p, _)| p.matches("nullable"));
 
         #[cfg(feature = "nullable")]
         let mut nullable_error_results = VecDeque::new();
@@ -219,20 +218,28 @@ impl SchemaNode {
             }
         }
 
-        let mut result = PartialApplication::valid(self.get_location(instance_path), None);
-        if error_results.is_empty() {
-            success_results
-                .into_iter()
-                .for_each(|mut v| result.merge_property_match(&mut v));
-        } else {
-            #[cfg(feature = "nullable")]
-            error_results.append(&mut nullable_error_results);
-            error_results
-                .into_iter()
-                .for_each(|mut v| result.merge_property_match(&mut v));
+        match (error_results.len(), success_results.len()) {
+            (0, 1) => success_results.pop_back().unwrap(),
+            (0, _) => {
+                let mut result = PartialApplication::valid(self.get_location(instance_path), None);
+                success_results.into_iter().for_each(|mut v| {
+                    result.merge_matches_enum(&mut v);
+                    result.merge(&mut v);
+                });
+                result
+            }
+            (1, _) => error_results.pop_back().unwrap(),
+            (_, _) => {
+                let mut result = PartialApplication::valid(self.get_location(instance_path), None);
+                #[cfg(feature = "nullable")]
+                error_results.append(&mut nullable_error_results);
+                error_results.into_iter().for_each(|mut v| {
+                    result.merge_matches_enum(&mut v);
+                    result.merge(&mut v);
+                });
+                result
+            }
         }
-
-        result
     }
 }
 

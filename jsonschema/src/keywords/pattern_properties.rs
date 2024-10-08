@@ -101,8 +101,9 @@ impl Validate for PatternPropertiesValidator {
                 for (key, value) in item {
                     if pattern.is_match(key).unwrap_or(false) {
                         let path = instance_path.push(key.clone());
+                        let mut application = node.apply(value, &path);
+                        result.merge_property_match(&mut application);
                         matched_propnames.push(key.clone());
-                        result.merge_property_match(&mut node.apply(value, &path));
                     }
                 }
             }
@@ -205,7 +206,8 @@ impl Validate for SingleValuePatternPropertiesValidator {
                 if self.pattern.is_match(key).unwrap_or(false) {
                     let path = instance_path.push(key.clone());
                     matched_propnames.push(key.clone());
-                    result.merge_property_match(&mut self.node.apply(value, &path));
+                    let mut application = self.node.apply(value, &path);
+                    result.merge_property_match(&mut application);
                 }
             }
             result.annotate(Value::from(matched_propnames).into());

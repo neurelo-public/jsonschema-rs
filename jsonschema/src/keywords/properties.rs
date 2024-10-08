@@ -98,7 +98,8 @@ impl Validate for PropertiesValidator {
                 if let Some(prop) = props.get(prop_name) {
                     let path = instance_path.push(prop_name.clone());
                     matched_props.push(prop_name.clone());
-                    result.merge_property_match(&mut node.apply(prop, &path));
+                    let mut application = node.apply(prop, &path);
+                    result.merge_property_match(&mut application);
                 }
             }
             result.annotate(Value::from(matched_props).into());

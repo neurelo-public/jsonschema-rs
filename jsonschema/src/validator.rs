@@ -203,13 +203,6 @@ impl<'a> PartialApplication<'a> {
         Self::invalid(location, errors, VecDeque::new())
     }
 
-    pub(crate) fn location(&self) -> &Location {
-        match self {
-            Self::Valid { location, .. } => location,
-            Self::Invalid { location, .. } => location,
-        }
-    }
-
     /// A shortcut to check whether the partial represents passed validation.
     #[must_use]
     pub(crate) const fn is_valid(&self) -> bool {
@@ -284,8 +277,18 @@ impl<'a> PartialApplication<'a> {
         {
             stats
                 .possible_enums
-                .extend(other_stats.possible_enums.iter().cloned());
+                .extend(std::mem::take(&mut other_stats.possible_enums));
         }
+    }
+
+    pub(crate) fn merge_matches_enum(&mut self, other: &mut Self) {
+        let stats = self.get_stats();
+        let other_stats = other.get_stats();
+
+        stats.matches_enum |= other_stats.matches_enum;
+        stats
+            .possible_enums
+            .extend(std::mem::take(&mut other_stats.possible_enums));
     }
 
     pub(crate) fn merge_property_match(&mut self, other: &mut Self) {
@@ -298,16 +301,12 @@ impl<'a> PartialApplication<'a> {
         let other_stats = other.get_stats();
 
         stats.properties_matches += 1;
-        if other_stats.matches_enum || other_is_valid || other_stats.properties_matches > 0 {
+        if other_stats.matches_enum || (other_is_valid && other_stats.properties_matches > 0) {
             stats.properties_value_matches += 1;
         }
-        if other_stats.matches_enum
-            && !other_stats.possible_enums.is_empty()
-            && other_stats.possible_enums.len() == 1
-        {
+        if other_stats.matches_enum && other_stats.possible_enums.len() == 1 {
             stats.primary_value_matches += 1;
         }
-        stats.matches_enum |= other_stats.matches_enum;
     }
 
     pub(crate) fn mark_valid_enum(&mut self) {
@@ -352,14 +351,31 @@ impl<'a> PartialOrd for ApplicationStats {
             Some(Ordering::Equal) => {}
             ord => return ord,
         }
-        self.properties_matches
-            .partial_cmp(&other.properties_matches)
+        let xx = self
+            .properties_matches
+            .partial_cmp(&other.properties_matches);
+
+        xx
     }
 }
 
 impl<'a> PartialEq for PartialApplication<'a> {
-    fn eq(&self, _: &Self) -> bool {
-        false
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                Self::Valid { stats, .. },
+                Self::Valid {
+                    stats: other_stats, ..
+                },
+            )
+            | (
+                PartialApplication::Invalid { stats, .. },
+                PartialApplication::Invalid {
+                    stats: other_stats, ..
+                },
+            ) => matches!(stats.partial_cmp(other_stats), Some(Ordering::Equal)),
+            (_, _) => false,
+        }
     }
 }
 

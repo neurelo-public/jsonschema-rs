@@ -104,9 +104,9 @@ impl<'a, 'b> Output<'a, 'b> {
     /// ```
     #[must_use]
     pub fn basic(&self) -> BasicOutput {
-        self.root_node
-            .apply(self.instance, &InstancePath::new())
-            .into()
+        let application = self.root_node.apply(self.instance, &InstancePath::new());
+
+        application.into()
     }
 }
 

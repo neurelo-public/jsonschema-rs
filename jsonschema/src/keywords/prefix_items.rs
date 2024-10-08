@@ -83,7 +83,8 @@ impl Validate for PrefixItemsValidator {
                 for (idx, (schema_node, item)) in self.schemas.iter().zip(items.iter()).enumerate()
                 {
                     let path = instance_path.push(idx);
-                    result.merge_property_match(&mut schema_node.apply(item, &path));
+                    let mut application = schema_node.apply(item, &path);
+                    result.merge_property_match(&mut application);
                     max_index_applied = idx;
                 }
                 // Per draft 2020-12 section https://json-schema.org/draft/2020-12/json-schema-core.html#rfc.section.10.3.1.1
