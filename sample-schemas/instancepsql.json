@@ -1,0 +1,15 @@
+{
+  "objects": {
+    "obj1": {
+      "properties": {
+        "prop1": {
+          "type": "integer",
+          "default": {
+            "function": "autoincrement"
+          },
+          "identifier": "false"
+        }
+      }
+    }
+  }
+}

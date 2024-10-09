@@ -203,23 +203,23 @@ mod tests {
     #[test]
     fn add_complexity() {
         let schema = tests_util::compile_schema(
-            &serde_json::from_str(include_str!("../../../schemapsql.json")).unwrap(),
+            &serde_json::from_str(include_str!("../../../sample-schemas/schemapsql.json")).unwrap(),
         );
-        let intance = serde_json::from_str(include_str!("../../../instancepsql.json")).unwrap();
+        let intance =
+            serde_json::from_str(include_str!("../../../sample-schemas/instancepsql.json"))
+                .unwrap();
 
         let res = schema.apply(&intance);
         let res = res.basic();
         match res {
-            crate::output::BasicOutput::Invalid(v) => {
-                for e in v {
-                    println!(
-                        "{} \t\t {}",
-                        e.instance_location().to_string(),
-                        e.error_description().to_string()
-                    );
-                }
+            crate::output::BasicOutput::Invalid(mut v) => {
+                assert!(v.len() == 1);
+                assert!(
+                    v.pop_back().unwrap().error_description().to_string()
+                        == r#""false" is not of types "boolean", "object""#
+                );
             }
-            crate::output::BasicOutput::Valid(_) => {}
+            crate::output::BasicOutput::Valid(_) => assert!(false, "should not be valid"),
         };
     }
 }

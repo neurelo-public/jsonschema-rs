@@ -1,0 +1,3923 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "id": "https://json-schema.neurelo.com/v1/postgresql",
+  "type": "object",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "datasource": {
+          "type": "object",
+          "required": [
+            "provider",
+            "url"
+          ],
+          "properties": {
+            "provider": {
+              "const": "postgresql"
+            },
+            "url": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "env": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "directUrl": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "env": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "enums": {
+          "type": "object",
+          "patternProperties": {
+            "^[a-zA-Z0-9\\.\\-_]+$": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z]+[A-Za-z0-9_]*$"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "value"
+                    ],
+                    "properties": {
+                      "value": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z]+[A-Za-z0-9_]*$"
+                      },
+                      "sourceName": {
+                        "type": "string",
+                        "description": "Value of the enum in the data source"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "minItems": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "objects": {
+          "type": "object",
+          "patternProperties": {
+            "^[a-zA-Z0-9\\.\\-_]+$": {
+              "type": "object",
+              "required": [
+                "properties"
+              ],
+              "properties": {
+                "sourceName": {
+                  "type": "string",
+                  "description": "Name of the model in the data source"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "constraints": {
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "description": "Id constraint",
+                        "type": "object",
+                        "required": [
+                          "type",
+                          "property"
+                        ],
+                        "properties": {
+                          "type": {
+                            "const": "identifier"
+                          },
+                          "property": {
+                            "type": [
+                              "string",
+                              "array"
+                            ],
+                            "items": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "name"
+                                  ],
+                                  "properties": {
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "alias": {
+                            "type": "string"
+                          },
+                          "sourceName": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      {
+                        "description": "Unique constraint",
+                        "type": "object",
+                        "required": [
+                          "type",
+                          "property"
+                        ],
+                        "properties": {
+                          "type": {
+                            "const": "unique"
+                          },
+                          "property": {
+                            "type": [
+                              "string",
+                              "array"
+                            ],
+                            "items": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "name"
+                                  ],
+                                  "properties": {
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "alias": {
+                            "type": "string"
+                          },
+                          "sourceName": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      {
+                        "description": "Index constraint",
+                        "type": "object",
+                        "required": [
+                          "type",
+                          "property"
+                        ],
+                        "properties": {
+                          "type": {
+                            "const": "index"
+                          },
+                          "property": {
+                            "type": [
+                              "string",
+                              "array"
+                            ],
+                            "items": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "name"
+                                  ],
+                                  "properties": {
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "sort": {
+                                      "enum": [
+                                        "asc",
+                                        "desc"
+                                      ]
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "alias": {
+                            "type": "string"
+                          },
+                          "sourceName": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": [
+                              "BTree",
+                              "Hash",
+                              "Gist",
+                              "Gin",
+                              "SpGist",
+                              "Brin"
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "properties": {
+                  "type": "object",
+                  "description": "The object properties",
+                  "patternProperties": {
+                    "^[a-zA-Z0-9\\.\\-_]+$": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "description": "String property",
+                          "required": [
+                            "type"
+                          ],
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "const": "string"
+                            },
+                            "default": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "value"
+                                  ],
+                                  "properties": {
+                                    "value": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "function"
+                                  ],
+                                  "properties": {
+                                    "function": {
+                                      "const": "uuid"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "function"
+                                  ],
+                                  "properties": {
+                                    "function": {
+                                      "const": "dbgenerated"
+                                    },
+                                    "rawDbValue": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              ]
+                            },
+                            "sourceType": {
+                              "oneOf": [
+                                {
+                                  "enum": [
+                                    "Text",
+                                    "VarBit",
+                                    "Uuid",
+                                    "Xml",
+                                    "Inet",
+                                    "Citext",
+                                    "Point",
+                                    "Char",
+                                    "VarChar",
+                                    "Bit"
+                                  ]
+                                },
+                                {
+                                  "type": "array",
+                                  "items": [
+                                    {
+                                      "enum": [
+                                        "Char",
+                                        "VarChar",
+                                        "Bit"
+                                      ]
+                                    },
+                                    {
+                                      "type": "number"
+                                    }
+                                  ],
+                                  "minItems": 2,
+                                  "maxItems": 2
+                                }
+                              ]
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "nullable": {
+                              "type": "boolean",
+                              "default": false
+                            },
+                            "sourceName": {
+                              "type": "string"
+                            },
+                            "identifier": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                }
+                              },
+                              "minProperties": 1
+                            },
+                            "unique": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                },
+                                "sort": {
+                                  "enum": [
+                                    "asc",
+                                    "desc"
+                                  ]
+                                }
+                              },
+                              "minProperties": 1
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "description": "Int property",
+                          "required": [
+                            "type"
+                          ],
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "const": "integer"
+                            },
+                            "default": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "value"
+                                  ],
+                                  "properties": {
+                                    "value": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "function"
+                                  ],
+                                  "properties": {
+                                    "function": {
+                                      "const": "autoincrement"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "function"
+                                  ],
+                                  "properties": {
+                                    "function": {
+                                      "const": "dbgenerated"
+                                    },
+                                    "rawDbValue": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              ]
+                            },
+                            "sourceType": {
+                              "oneOf": [
+                                {
+                                  "enum": [
+                                    "Integer",
+                                    "SmallInt",
+                                    "Oid"
+                                  ]
+                                }
+                              ]
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "nullable": {
+                              "type": "boolean",
+                              "default": false
+                            },
+                            "sourceName": {
+                              "type": "string"
+                            },
+                            "identifier": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                }
+                              },
+                              "minProperties": 1
+                            },
+                            "unique": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                },
+                                "sort": {
+                                  "enum": [
+                                    "asc",
+                                    "desc"
+                                  ]
+                                }
+                              },
+                              "minProperties": 1
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "description": "Boolean property",
+                          "required": [
+                            "type"
+                          ],
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "const": "boolean"
+                            },
+                            "default": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "value"
+                                  ],
+                                  "properties": {
+                                    "value": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "function"
+                                  ],
+                                  "properties": {
+                                    "function": {
+                                      "const": "dbgenerated"
+                                    },
+                                    "rawDbValue": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              ]
+                            },
+                            "sourceType": {
+                              "oneOf": [
+                                {
+                                  "enum": [
+                                    "Boolean"
+                                  ]
+                                }
+                              ]
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "nullable": {
+                              "type": "boolean",
+                              "default": false
+                            },
+                            "sourceName": {
+                              "type": "string"
+                            },
+                            "identifier": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                }
+                              },
+                              "minProperties": 1
+                            },
+                            "unique": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                },
+                                "sort": {
+                                  "enum": [
+                                    "asc",
+                                    "desc"
+                                  ]
+                                }
+                              },
+                              "minProperties": 1
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "description": "BigInt property",
+                          "required": [
+                            "type",
+                            "format"
+                          ],
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "const": "string"
+                            },
+                            "format": {
+                              "type": "string",
+                              "const": "bigInt"
+                            },
+                            "default": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "value"
+                                  ],
+                                  "properties": {
+                                    "value": {
+                                      "type": "string",
+                                      "pattern": "^[-]?([0-9]+)$"
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "function"
+                                  ],
+                                  "properties": {
+                                    "function": {
+                                      "const": "autoincrement"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "function"
+                                  ],
+                                  "properties": {
+                                    "function": {
+                                      "const": "dbgenerated"
+                                    },
+                                    "rawDbValue": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              ]
+                            },
+                            "sourceType": {
+                              "oneOf": [
+                                {
+                                  "enum": [
+                                    "BigInt"
+                                  ]
+                                }
+                              ]
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "nullable": {
+                              "type": "boolean",
+                              "default": false
+                            },
+                            "sourceName": {
+                              "type": "string"
+                            },
+                            "identifier": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                }
+                              },
+                              "minProperties": 1
+                            },
+                            "unique": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                },
+                                "sort": {
+                                  "enum": [
+                                    "asc",
+                                    "desc"
+                                  ]
+                                }
+                              },
+                              "minProperties": 1
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "description": "Float property",
+                          "required": [
+                            "type",
+                            "format"
+                          ],
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "const": "number"
+                            },
+                            "format": {
+                              "type": "string",
+                              "const": "float"
+                            },
+                            "default": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "value"
+                                  ],
+                                  "properties": {
+                                    "value": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "function"
+                                  ],
+                                  "properties": {
+                                    "function": {
+                                      "const": "dbgenerated"
+                                    },
+                                    "rawDbValue": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              ]
+                            },
+                            "sourceType": {
+                              "oneOf": [
+                                {
+                                  "enum": [
+                                    "DoublePrecision",
+                                    "Real"
+                                  ]
+                                }
+                              ]
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "nullable": {
+                              "type": "boolean",
+                              "default": false
+                            },
+                            "sourceName": {
+                              "type": "string"
+                            },
+                            "identifier": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                }
+                              },
+                              "minProperties": 1
+                            },
+                            "unique": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                },
+                                "sort": {
+                                  "enum": [
+                                    "asc",
+                                    "desc"
+                                  ]
+                                }
+                              },
+                              "minProperties": 1
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "description": "Decimal property",
+                          "required": [
+                            "type",
+                            "format"
+                          ],
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "const": "string"
+                            },
+                            "format": {
+                              "type": "string",
+                              "const": "decimal"
+                            },
+                            "default": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "value"
+                                  ],
+                                  "properties": {
+                                    "value": {
+                                      "type": "string",
+                                      "pattern": "^[-]?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))$"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "function"
+                                  ],
+                                  "properties": {
+                                    "function": {
+                                      "const": "dbgenerated"
+                                    },
+                                    "rawDbValue": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              ]
+                            },
+                            "sourceType": {
+                              "oneOf": [
+                                {
+                                  "enum": [
+                                    "Money",
+                                    "Decimal"
+                                  ]
+                                },
+                                {
+                                  "type": "array",
+                                  "items": [
+                                    {
+                                      "const": "Decimal"
+                                    },
+                                    {
+                                      "type": "integer"
+                                    },
+                                    {
+                                      "type": "integer"
+                                    }
+                                  ],
+                                  "minItems": 3,
+                                  "maxItems": 3
+                                }
+                              ]
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "nullable": {
+                              "type": "boolean",
+                              "default": false
+                            },
+                            "sourceName": {
+                              "type": "string"
+                            },
+                            "identifier": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                }
+                              },
+                              "minProperties": 1
+                            },
+                            "unique": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                },
+                                "sort": {
+                                  "enum": [
+                                    "asc",
+                                    "desc"
+                                  ]
+                                }
+                              },
+                              "minProperties": 1
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "description": "DateTime property",
+                          "required": [
+                            "type",
+                            "format"
+                          ],
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "const": "string"
+                            },
+                            "format": {
+                              "type": "string",
+                              "enum": [
+                                "date-time"
+                              ]
+                            },
+                            "default": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "value"
+                                  ],
+                                  "properties": {
+                                    "value": {
+                                      "type": "string",
+                                      "anyOf": [
+                                        {
+                                          "format": "date-time"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "function"
+                                  ],
+                                  "properties": {
+                                    "function": {
+                                      "const": "now"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "function"
+                                  ],
+                                  "properties": {
+                                    "function": {
+                                      "const": "dbgenerated"
+                                    },
+                                    "rawDbValue": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              ]
+                            },
+                            "sourceType": {
+                              "oneOf": [
+                                {
+                                  "enum": [
+                                    "Date",
+                                    "Time",
+                                    "Timestamp",
+                                    "Timetz",
+                                    "Timestamptz"
+                                  ]
+                                },
+                                {
+                                  "type": "array",
+                                  "items": [
+                                    {
+                                      "enum": [
+                                        "Time",
+                                        "Timetz",
+                                        "Timestamp",
+                                        "Timestamptz"
+                                      ]
+                                    },
+                                    {
+                                      "type": "number",
+                                      "description": "Time precision"
+                                    }
+                                  ],
+                                  "minItems": 2,
+                                  "maxItems": 2
+                                }
+                              ]
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "nullable": {
+                              "type": "boolean",
+                              "default": false
+                            },
+                            "sourceName": {
+                              "type": "string"
+                            },
+                            "identifier": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                }
+                              },
+                              "minProperties": 1
+                            },
+                            "unique": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                },
+                                "sort": {
+                                  "enum": [
+                                    "asc",
+                                    "desc"
+                                  ]
+                                }
+                              },
+                              "minProperties": 1
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "description": "Bytes property",
+                          "required": [
+                            "type",
+                            "format"
+                          ],
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "const": "string"
+                            },
+                            "format": {
+                              "type": "string",
+                              "const": "bytes"
+                            },
+                            "default": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "value"
+                                  ],
+                                  "properties": {
+                                    "value": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "function"
+                                  ],
+                                  "properties": {
+                                    "function": {
+                                      "const": "dbgenerated"
+                                    },
+                                    "rawDbValue": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              ]
+                            },
+                            "sourceType": {
+                              "oneOf": [
+                                {
+                                  "enum": [
+                                    "ByteA"
+                                  ]
+                                }
+                              ]
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "nullable": {
+                              "type": "boolean",
+                              "default": false
+                            },
+                            "sourceName": {
+                              "type": "string"
+                            },
+                            "identifier": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                }
+                              },
+                              "minProperties": 1
+                            },
+                            "unique": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                },
+                                "sort": {
+                                  "enum": [
+                                    "asc",
+                                    "desc"
+                                  ]
+                                }
+                              },
+                              "minProperties": 1
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "description": "Json property",
+                          "required": [
+                            "type",
+                            "format"
+                          ],
+                          "properties": {
+                            "type": {
+                              "type": "array",
+                              "const": [
+                                "array",
+                                "boolean",
+                                "integer",
+                                "number",
+                                "object",
+                                "string"
+                              ]
+                            },
+                            "format": {
+                              "type": "string",
+                              "const": "json"
+                            },
+                            "default": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "value"
+                                  ],
+                                  "properties": {
+                                    "value": {
+                                      "type": [
+                                        "array",
+                                        "boolean",
+                                        "integer",
+                                        "null",
+                                        "number",
+                                        "object",
+                                        "string"
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "function"
+                                  ],
+                                  "properties": {
+                                    "function": {
+                                      "const": "dbgenerated"
+                                    },
+                                    "rawDbValue": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              ]
+                            },
+                            "sourceType": {
+                              "oneOf": [
+                                {
+                                  "enum": [
+                                    "Json",
+                                    "JsonB"
+                                  ]
+                                }
+                              ]
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "nullable": {
+                              "type": "boolean",
+                              "default": false
+                            },
+                            "sourceName": {
+                              "type": "string"
+                            },
+                            "identifier": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                }
+                              },
+                              "minProperties": 1
+                            },
+                            "unique": {
+                              "type": [
+                                "boolean",
+                                "object"
+                              ],
+                              "default": false,
+                              "properties": {
+                                "sourceName": {
+                                  "type": "string"
+                                },
+                                "sort": {
+                                  "enum": [
+                                    "asc",
+                                    "desc"
+                                  ]
+                                }
+                              },
+                              "minProperties": 1
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "description": "Array property",
+                          "required": [
+                            "type",
+                            "items"
+                          ],
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "const": "array"
+                            },
+                            "items": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "description": "String property",
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "string"
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "Text",
+                                            "VarBit",
+                                            "Uuid",
+                                            "Xml",
+                                            "Inet",
+                                            "Citext",
+                                            "Point",
+                                            "Char",
+                                            "VarChar",
+                                            "Bit"
+                                          ]
+                                        },
+                                        {
+                                          "type": "array",
+                                          "items": [
+                                            {
+                                              "enum": [
+                                                "Char",
+                                                "VarChar",
+                                                "Bit"
+                                              ]
+                                            },
+                                            {
+                                              "type": "number"
+                                            }
+                                          ],
+                                          "minItems": 2,
+                                          "maxItems": 2
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Int property",
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "integer"
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "Integer",
+                                            "SmallInt",
+                                            "Oid"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Boolean property",
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "boolean"
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "Boolean"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "BigInt property",
+                                  "required": [
+                                    "type",
+                                    "format"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "string"
+                                    },
+                                    "format": {
+                                      "type": "string",
+                                      "const": "bigInt"
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "BigInt"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Float property",
+                                  "required": [
+                                    "type",
+                                    "format"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "number"
+                                    },
+                                    "format": {
+                                      "type": "string",
+                                      "const": "float"
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "DoublePrecision",
+                                            "Real"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Decimal property",
+                                  "required": [
+                                    "type",
+                                    "format"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "string"
+                                    },
+                                    "format": {
+                                      "type": "string",
+                                      "const": "decimal"
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "Money",
+                                            "Decimal"
+                                          ]
+                                        },
+                                        {
+                                          "type": "array",
+                                          "items": [
+                                            {
+                                              "const": "Decimal"
+                                            },
+                                            {
+                                              "type": "integer"
+                                            },
+                                            {
+                                              "type": "integer"
+                                            }
+                                          ],
+                                          "minItems": 3,
+                                          "maxItems": 3
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "DateTime property",
+                                  "required": [
+                                    "type",
+                                    "format"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "string"
+                                    },
+                                    "format": {
+                                      "type": "string",
+                                      "enum": [
+                                        "date-time"
+                                      ]
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "Date",
+                                            "Time",
+                                            "Timestamp",
+                                            "Timetz",
+                                            "Timestamptz"
+                                          ]
+                                        },
+                                        {
+                                          "type": "array",
+                                          "items": [
+                                            {
+                                              "enum": [
+                                                "Time",
+                                                "Timetz",
+                                                "Timestamp",
+                                                "Timestamptz"
+                                              ]
+                                            },
+                                            {
+                                              "type": "number",
+                                              "description": "Time precision"
+                                            }
+                                          ],
+                                          "minItems": 2,
+                                          "maxItems": 2
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Bytes property",
+                                  "required": [
+                                    "type",
+                                    "format"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "string"
+                                    },
+                                    "format": {
+                                      "type": "string",
+                                      "const": "bytes"
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "ByteA"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Json property",
+                                  "required": [
+                                    "type",
+                                    "format"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "array",
+                                      "const": [
+                                        "array",
+                                        "boolean",
+                                        "integer",
+                                        "number",
+                                        "object",
+                                        "string"
+                                      ]
+                                    },
+                                    "format": {
+                                      "type": "string",
+                                      "const": "json"
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "Json",
+                                            "JsonB"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              ]
+                            },
+                            "default": {
+                              "oneOf": [
+                                {
+                                  "type": "array",
+                                  "items": {}
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "function"
+                                  ],
+                                  "properties": {
+                                    "function": {
+                                      "const": "dbgenerated"
+                                    },
+                                    "rawDbValue": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              ]
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "sourceName": {
+                              "type": "string"
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "description": "Unsupported property",
+                          "required": [
+                            "type"
+                          ],
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "pattern": "Unsupported.+"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "nullable": {
+                              "type": "boolean",
+                              "default": false
+                            },
+                            "sourceName": {
+                              "type": "string"
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "description": "Enum property",
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "required": [
+                                "$ref"
+                              ],
+                              "properties": {
+                                "$ref": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string",
+                                      "format": "uri-format",
+                                      "pattern": "#(/schemas/.+)?/enums/.+"
+                                    }
+                                  ]
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "nullable": {
+                                  "type": "boolean",
+                                  "default": false
+                                },
+                                "default": {
+                                  "type": "object",
+                                  "required": [
+                                    "value"
+                                  ],
+                                  "properties": {
+                                    "value": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                "sourceName": {
+                                  "type": "string"
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "description": "Enum array property",
+                              "required": [
+                                "type",
+                                "items"
+                              ],
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "const": "array"
+                                },
+                                "items": {
+                                  "type": "object",
+                                  "required": [
+                                    "$ref"
+                                  ],
+                                  "properties": {
+                                    "$ref": {
+                                      "oneOf": [
+                                        {
+                                          "type": "string",
+                                          "format": "uri-format",
+                                          "pattern": "#(/schemas/.+)?/enums/.+"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "nullable": {
+                                  "type": "boolean",
+                                  "default": false
+                                },
+                                "sourceName": {
+                                  "type": "string"
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "description": "Relation oneToN property",
+                          "required": [
+                            "type",
+                            "items"
+                          ],
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "const": "array"
+                            },
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "$ref"
+                              ],
+                              "properties": {
+                                "$ref": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string",
+                                      "format": "uri-format",
+                                      "pattern": "#(/schemas/.+)?/objects/.+"
+                                    }
+                                  ]
+                                },
+                                "relation": {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "attrKey": {
+                                      "type": [
+                                        "string",
+                                        "array"
+                                      ],
+                                      "items": {
+                                        "type": "string"
+                                      },
+                                      "minItems": 1
+                                    },
+                                    "foreignAttrKey": {
+                                      "type": [
+                                        "string",
+                                        "array"
+                                      ],
+                                      "items": {
+                                        "type": "string"
+                                      },
+                                      "minItems": 1
+                                    },
+                                    "sourceName": {
+                                      "type": "string"
+                                    },
+                                    "onUpdate": {
+                                      "type": "string",
+                                      "enum": [
+                                        "Cascade",
+                                        "Restrict",
+                                        "NoAction",
+                                        "SetNull",
+                                        "SetDefault"
+                                      ]
+                                    },
+                                    "onDelete": {
+                                      "type": "string",
+                                      "enum": [
+                                        "Cascade",
+                                        "Restrict",
+                                        "NoAction",
+                                        "SetNull",
+                                        "SetDefault"
+                                      ]
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "nullable": {
+                              "type": "boolean",
+                              "default": false
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "description": "Relation property",
+                          "required": [
+                            "$ref"
+                          ],
+                          "properties": {
+                            "$ref": {
+                              "oneOf": [
+                                {
+                                  "type": "string",
+                                  "format": "uri-format",
+                                  "pattern": "#(/schemas/.+)?/objects/.+"
+                                }
+                              ]
+                            },
+                            "relation": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "attrKey": {
+                                  "type": [
+                                    "string",
+                                    "array"
+                                  ],
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "minItems": 1
+                                },
+                                "foreignAttrKey": {
+                                  "type": [
+                                    "string",
+                                    "array"
+                                  ],
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "minItems": 1
+                                },
+                                "sourceName": {
+                                  "type": "string"
+                                },
+                                "onUpdate": {
+                                  "type": "string",
+                                  "enum": [
+                                    "Cascade",
+                                    "Restrict",
+                                    "NoAction",
+                                    "SetNull",
+                                    "SetDefault"
+                                  ]
+                                },
+                                "onDelete": {
+                                  "type": "string",
+                                  "enum": [
+                                    "Cascade",
+                                    "Restrict",
+                                    "NoAction",
+                                    "SetNull",
+                                    "SetDefault"
+                                  ]
+                                }
+                              }
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "nullable": {
+                              "type": "boolean",
+                              "default": false
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schemas"
+      ],
+      "properties": {
+        "datasource": {
+          "type": "object",
+          "required": [
+            "provider",
+            "url"
+          ],
+          "properties": {
+            "provider": {
+              "const": "postgresql"
+            },
+            "url": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "env": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "directUrl": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "env": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "schemas": {
+          "type": "object",
+          "patternProperties": {
+            "^[a-zA-Z0-9\\-_]+$": {
+              "type": "object",
+              "properties": {
+                "enums": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^[a-zA-Z0-9\\.\\-_]+$": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^[A-Za-z]+[A-Za-z0-9_]*$"
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "value"
+                            ],
+                            "properties": {
+                              "value": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z]+[A-Za-z0-9_]*$"
+                              },
+                              "sourceName": {
+                                "type": "string",
+                                "description": "Value of the enum in the data source"
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "minItems": 1
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "objects": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^[a-zA-Z0-9\\.\\-_]+$": {
+                      "type": "object",
+                      "required": [
+                        "properties"
+                      ],
+                      "properties": {
+                        "sourceName": {
+                          "type": "string",
+                          "description": "Name of the model in the data source"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "constraints": {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "description": "Id constraint",
+                                "type": "object",
+                                "required": [
+                                  "type",
+                                  "property"
+                                ],
+                                "properties": {
+                                  "type": {
+                                    "const": "identifier"
+                                  },
+                                  "property": {
+                                    "type": [
+                                      "string",
+                                      "array"
+                                    ],
+                                    "items": {
+                                      "oneOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "name"
+                                          ],
+                                          "properties": {
+                                            "name": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "alias": {
+                                    "type": "string"
+                                  },
+                                  "sourceName": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "description": "Unique constraint",
+                                "type": "object",
+                                "required": [
+                                  "type",
+                                  "property"
+                                ],
+                                "properties": {
+                                  "type": {
+                                    "const": "unique"
+                                  },
+                                  "property": {
+                                    "type": [
+                                      "string",
+                                      "array"
+                                    ],
+                                    "items": {
+                                      "oneOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "name"
+                                          ],
+                                          "properties": {
+                                            "name": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "alias": {
+                                    "type": "string"
+                                  },
+                                  "sourceName": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "description": "Index constraint",
+                                "type": "object",
+                                "required": [
+                                  "type",
+                                  "property"
+                                ],
+                                "properties": {
+                                  "type": {
+                                    "const": "index"
+                                  },
+                                  "property": {
+                                    "type": [
+                                      "string",
+                                      "array"
+                                    ],
+                                    "items": {
+                                      "oneOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "name"
+                                          ],
+                                          "properties": {
+                                            "name": {
+                                              "type": "string"
+                                            },
+                                            "sort": {
+                                              "enum": [
+                                                "asc",
+                                                "desc"
+                                              ]
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "alias": {
+                                    "type": "string"
+                                  },
+                                  "sourceName": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "enum": [
+                                      "BTree",
+                                      "Hash",
+                                      "Gist",
+                                      "Gin",
+                                      "SpGist",
+                                      "Brin"
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        "properties": {
+                          "type": "object",
+                          "description": "The object properties",
+                          "patternProperties": {
+                            "^[a-zA-Z0-9\\.\\-_]+$": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "description": "String property",
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "string"
+                                    },
+                                    "default": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "value"
+                                          ],
+                                          "properties": {
+                                            "value": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "function"
+                                          ],
+                                          "properties": {
+                                            "function": {
+                                              "const": "uuid"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "function"
+                                          ],
+                                          "properties": {
+                                            "function": {
+                                              "const": "dbgenerated"
+                                            },
+                                            "rawDbValue": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "Text",
+                                            "VarBit",
+                                            "Uuid",
+                                            "Xml",
+                                            "Inet",
+                                            "Citext",
+                                            "Point",
+                                            "Char",
+                                            "VarChar",
+                                            "Bit"
+                                          ]
+                                        },
+                                        {
+                                          "type": "array",
+                                          "items": [
+                                            {
+                                              "enum": [
+                                                "Char",
+                                                "VarChar",
+                                                "Bit"
+                                              ]
+                                            },
+                                            {
+                                              "type": "number"
+                                            }
+                                          ],
+                                          "minItems": 2,
+                                          "maxItems": 2
+                                        }
+                                      ]
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "nullable": {
+                                      "type": "boolean",
+                                      "default": false
+                                    },
+                                    "sourceName": {
+                                      "type": "string"
+                                    },
+                                    "identifier": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    },
+                                    "unique": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        },
+                                        "sort": {
+                                          "enum": [
+                                            "asc",
+                                            "desc"
+                                          ]
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Int property",
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "integer"
+                                    },
+                                    "default": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "value"
+                                          ],
+                                          "properties": {
+                                            "value": {
+                                              "type": "integer"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "function"
+                                          ],
+                                          "properties": {
+                                            "function": {
+                                              "const": "autoincrement"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "function"
+                                          ],
+                                          "properties": {
+                                            "function": {
+                                              "const": "dbgenerated"
+                                            },
+                                            "rawDbValue": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "Integer",
+                                            "SmallInt",
+                                            "Oid"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "nullable": {
+                                      "type": "boolean",
+                                      "default": false
+                                    },
+                                    "sourceName": {
+                                      "type": "string"
+                                    },
+                                    "identifier": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    },
+                                    "unique": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        },
+                                        "sort": {
+                                          "enum": [
+                                            "asc",
+                                            "desc"
+                                          ]
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Boolean property",
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "boolean"
+                                    },
+                                    "default": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "value"
+                                          ],
+                                          "properties": {
+                                            "value": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "function"
+                                          ],
+                                          "properties": {
+                                            "function": {
+                                              "const": "dbgenerated"
+                                            },
+                                            "rawDbValue": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "Boolean"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "nullable": {
+                                      "type": "boolean",
+                                      "default": false
+                                    },
+                                    "sourceName": {
+                                      "type": "string"
+                                    },
+                                    "identifier": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    },
+                                    "unique": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        },
+                                        "sort": {
+                                          "enum": [
+                                            "asc",
+                                            "desc"
+                                          ]
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "BigInt property",
+                                  "required": [
+                                    "type",
+                                    "format"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "string"
+                                    },
+                                    "format": {
+                                      "type": "string",
+                                      "const": "bigInt"
+                                    },
+                                    "default": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "value"
+                                          ],
+                                          "properties": {
+                                            "value": {
+                                              "type": "string",
+                                              "pattern": "^[-]?([0-9]+)$"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "function"
+                                          ],
+                                          "properties": {
+                                            "function": {
+                                              "const": "autoincrement"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "function"
+                                          ],
+                                          "properties": {
+                                            "function": {
+                                              "const": "dbgenerated"
+                                            },
+                                            "rawDbValue": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "BigInt"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "nullable": {
+                                      "type": "boolean",
+                                      "default": false
+                                    },
+                                    "sourceName": {
+                                      "type": "string"
+                                    },
+                                    "identifier": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    },
+                                    "unique": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        },
+                                        "sort": {
+                                          "enum": [
+                                            "asc",
+                                            "desc"
+                                          ]
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Float property",
+                                  "required": [
+                                    "type",
+                                    "format"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "number"
+                                    },
+                                    "format": {
+                                      "type": "string",
+                                      "const": "float"
+                                    },
+                                    "default": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "value"
+                                          ],
+                                          "properties": {
+                                            "value": {
+                                              "type": "number"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "function"
+                                          ],
+                                          "properties": {
+                                            "function": {
+                                              "const": "dbgenerated"
+                                            },
+                                            "rawDbValue": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "DoublePrecision",
+                                            "Real"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "nullable": {
+                                      "type": "boolean",
+                                      "default": false
+                                    },
+                                    "sourceName": {
+                                      "type": "string"
+                                    },
+                                    "identifier": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    },
+                                    "unique": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        },
+                                        "sort": {
+                                          "enum": [
+                                            "asc",
+                                            "desc"
+                                          ]
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Decimal property",
+                                  "required": [
+                                    "type",
+                                    "format"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "string"
+                                    },
+                                    "format": {
+                                      "type": "string",
+                                      "const": "decimal"
+                                    },
+                                    "default": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "value"
+                                          ],
+                                          "properties": {
+                                            "value": {
+                                              "type": "string",
+                                              "pattern": "^[-]?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))$"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "function"
+                                          ],
+                                          "properties": {
+                                            "function": {
+                                              "const": "dbgenerated"
+                                            },
+                                            "rawDbValue": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "Money",
+                                            "Decimal"
+                                          ]
+                                        },
+                                        {
+                                          "type": "array",
+                                          "items": [
+                                            {
+                                              "const": "Decimal"
+                                            },
+                                            {
+                                              "type": "integer"
+                                            },
+                                            {
+                                              "type": "integer"
+                                            }
+                                          ],
+                                          "minItems": 3,
+                                          "maxItems": 3
+                                        }
+                                      ]
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "nullable": {
+                                      "type": "boolean",
+                                      "default": false
+                                    },
+                                    "sourceName": {
+                                      "type": "string"
+                                    },
+                                    "identifier": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    },
+                                    "unique": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        },
+                                        "sort": {
+                                          "enum": [
+                                            "asc",
+                                            "desc"
+                                          ]
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "DateTime property",
+                                  "required": [
+                                    "type",
+                                    "format"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "string"
+                                    },
+                                    "format": {
+                                      "type": "string",
+                                      "enum": [
+                                        "date-time"
+                                      ]
+                                    },
+                                    "default": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "value"
+                                          ],
+                                          "properties": {
+                                            "value": {
+                                              "type": "string",
+                                              "anyOf": [
+                                                {
+                                                  "format": "date-time"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "function"
+                                          ],
+                                          "properties": {
+                                            "function": {
+                                              "const": "now"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "function"
+                                          ],
+                                          "properties": {
+                                            "function": {
+                                              "const": "dbgenerated"
+                                            },
+                                            "rawDbValue": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "Date",
+                                            "Time",
+                                            "Timestamp",
+                                            "Timetz",
+                                            "Timestamptz"
+                                          ]
+                                        },
+                                        {
+                                          "type": "array",
+                                          "items": [
+                                            {
+                                              "enum": [
+                                                "Time",
+                                                "Timetz",
+                                                "Timestamp",
+                                                "Timestamptz"
+                                              ]
+                                            },
+                                            {
+                                              "type": "number",
+                                              "description": "Time precision"
+                                            }
+                                          ],
+                                          "minItems": 2,
+                                          "maxItems": 2
+                                        }
+                                      ]
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "nullable": {
+                                      "type": "boolean",
+                                      "default": false
+                                    },
+                                    "sourceName": {
+                                      "type": "string"
+                                    },
+                                    "identifier": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    },
+                                    "unique": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        },
+                                        "sort": {
+                                          "enum": [
+                                            "asc",
+                                            "desc"
+                                          ]
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Bytes property",
+                                  "required": [
+                                    "type",
+                                    "format"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "string"
+                                    },
+                                    "format": {
+                                      "type": "string",
+                                      "const": "bytes"
+                                    },
+                                    "default": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "value"
+                                          ],
+                                          "properties": {
+                                            "value": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "function"
+                                          ],
+                                          "properties": {
+                                            "function": {
+                                              "const": "dbgenerated"
+                                            },
+                                            "rawDbValue": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "ByteA"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "nullable": {
+                                      "type": "boolean",
+                                      "default": false
+                                    },
+                                    "sourceName": {
+                                      "type": "string"
+                                    },
+                                    "identifier": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    },
+                                    "unique": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        },
+                                        "sort": {
+                                          "enum": [
+                                            "asc",
+                                            "desc"
+                                          ]
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Json property",
+                                  "required": [
+                                    "type",
+                                    "format"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "array",
+                                      "const": [
+                                        "array",
+                                        "boolean",
+                                        "integer",
+                                        "number",
+                                        "object",
+                                        "string"
+                                      ]
+                                    },
+                                    "format": {
+                                      "type": "string",
+                                      "const": "json"
+                                    },
+                                    "default": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "value"
+                                          ],
+                                          "properties": {
+                                            "value": {
+                                              "type": [
+                                                "array",
+                                                "boolean",
+                                                "integer",
+                                                "null",
+                                                "number",
+                                                "object",
+                                                "string"
+                                              ]
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "function"
+                                          ],
+                                          "properties": {
+                                            "function": {
+                                              "const": "dbgenerated"
+                                            },
+                                            "rawDbValue": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "sourceType": {
+                                      "oneOf": [
+                                        {
+                                          "enum": [
+                                            "Json",
+                                            "JsonB"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "nullable": {
+                                      "type": "boolean",
+                                      "default": false
+                                    },
+                                    "sourceName": {
+                                      "type": "string"
+                                    },
+                                    "identifier": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    },
+                                    "unique": {
+                                      "type": [
+                                        "boolean",
+                                        "object"
+                                      ],
+                                      "default": false,
+                                      "properties": {
+                                        "sourceName": {
+                                          "type": "string"
+                                        },
+                                        "sort": {
+                                          "enum": [
+                                            "asc",
+                                            "desc"
+                                          ]
+                                        }
+                                      },
+                                      "minProperties": 1
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Array property",
+                                  "required": [
+                                    "type",
+                                    "items"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "array"
+                                    },
+                                    "items": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "description": "String property",
+                                          "required": [
+                                            "type"
+                                          ],
+                                          "properties": {
+                                            "type": {
+                                              "type": "string",
+                                              "const": "string"
+                                            },
+                                            "sourceType": {
+                                              "oneOf": [
+                                                {
+                                                  "enum": [
+                                                    "Text",
+                                                    "VarBit",
+                                                    "Uuid",
+                                                    "Xml",
+                                                    "Inet",
+                                                    "Citext",
+                                                    "Point",
+                                                    "Char",
+                                                    "VarChar",
+                                                    "Bit"
+                                                  ]
+                                                },
+                                                {
+                                                  "type": "array",
+                                                  "items": [
+                                                    {
+                                                      "enum": [
+                                                        "Char",
+                                                        "VarChar",
+                                                        "Bit"
+                                                      ]
+                                                    },
+                                                    {
+                                                      "type": "number"
+                                                    }
+                                                  ],
+                                                  "minItems": 2,
+                                                  "maxItems": 2
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "description": "Int property",
+                                          "required": [
+                                            "type"
+                                          ],
+                                          "properties": {
+                                            "type": {
+                                              "type": "string",
+                                              "const": "integer"
+                                            },
+                                            "sourceType": {
+                                              "oneOf": [
+                                                {
+                                                  "enum": [
+                                                    "Integer",
+                                                    "SmallInt",
+                                                    "Oid"
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "description": "Boolean property",
+                                          "required": [
+                                            "type"
+                                          ],
+                                          "properties": {
+                                            "type": {
+                                              "type": "string",
+                                              "const": "boolean"
+                                            },
+                                            "sourceType": {
+                                              "oneOf": [
+                                                {
+                                                  "enum": [
+                                                    "Boolean"
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "description": "BigInt property",
+                                          "required": [
+                                            "type",
+                                            "format"
+                                          ],
+                                          "properties": {
+                                            "type": {
+                                              "type": "string",
+                                              "const": "string"
+                                            },
+                                            "format": {
+                                              "type": "string",
+                                              "const": "bigInt"
+                                            },
+                                            "sourceType": {
+                                              "oneOf": [
+                                                {
+                                                  "enum": [
+                                                    "BigInt"
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "description": "Float property",
+                                          "required": [
+                                            "type",
+                                            "format"
+                                          ],
+                                          "properties": {
+                                            "type": {
+                                              "type": "string",
+                                              "const": "number"
+                                            },
+                                            "format": {
+                                              "type": "string",
+                                              "const": "float"
+                                            },
+                                            "sourceType": {
+                                              "oneOf": [
+                                                {
+                                                  "enum": [
+                                                    "DoublePrecision",
+                                                    "Real"
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "description": "Decimal property",
+                                          "required": [
+                                            "type",
+                                            "format"
+                                          ],
+                                          "properties": {
+                                            "type": {
+                                              "type": "string",
+                                              "const": "string"
+                                            },
+                                            "format": {
+                                              "type": "string",
+                                              "const": "decimal"
+                                            },
+                                            "sourceType": {
+                                              "oneOf": [
+                                                {
+                                                  "enum": [
+                                                    "Money",
+                                                    "Decimal"
+                                                  ]
+                                                },
+                                                {
+                                                  "type": "array",
+                                                  "items": [
+                                                    {
+                                                      "const": "Decimal"
+                                                    },
+                                                    {
+                                                      "type": "integer"
+                                                    },
+                                                    {
+                                                      "type": "integer"
+                                                    }
+                                                  ],
+                                                  "minItems": 3,
+                                                  "maxItems": 3
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "description": "DateTime property",
+                                          "required": [
+                                            "type",
+                                            "format"
+                                          ],
+                                          "properties": {
+                                            "type": {
+                                              "type": "string",
+                                              "const": "string"
+                                            },
+                                            "format": {
+                                              "type": "string",
+                                              "enum": [
+                                                "date-time"
+                                              ]
+                                            },
+                                            "sourceType": {
+                                              "oneOf": [
+                                                {
+                                                  "enum": [
+                                                    "Date",
+                                                    "Time",
+                                                    "Timestamp",
+                                                    "Timetz",
+                                                    "Timestamptz"
+                                                  ]
+                                                },
+                                                {
+                                                  "type": "array",
+                                                  "items": [
+                                                    {
+                                                      "enum": [
+                                                        "Time",
+                                                        "Timetz",
+                                                        "Timestamp",
+                                                        "Timestamptz"
+                                                      ]
+                                                    },
+                                                    {
+                                                      "type": "number",
+                                                      "description": "Time precision"
+                                                    }
+                                                  ],
+                                                  "minItems": 2,
+                                                  "maxItems": 2
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "description": "Bytes property",
+                                          "required": [
+                                            "type",
+                                            "format"
+                                          ],
+                                          "properties": {
+                                            "type": {
+                                              "type": "string",
+                                              "const": "string"
+                                            },
+                                            "format": {
+                                              "type": "string",
+                                              "const": "bytes"
+                                            },
+                                            "sourceType": {
+                                              "oneOf": [
+                                                {
+                                                  "enum": [
+                                                    "ByteA"
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "description": "Json property",
+                                          "required": [
+                                            "type",
+                                            "format"
+                                          ],
+                                          "properties": {
+                                            "type": {
+                                              "type": "array",
+                                              "const": [
+                                                "array",
+                                                "boolean",
+                                                "integer",
+                                                "number",
+                                                "object",
+                                                "string"
+                                              ]
+                                            },
+                                            "format": {
+                                              "type": "string",
+                                              "const": "json"
+                                            },
+                                            "sourceType": {
+                                              "oneOf": [
+                                                {
+                                                  "enum": [
+                                                    "Json",
+                                                    "JsonB"
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "default": {
+                                      "oneOf": [
+                                        {
+                                          "type": "array",
+                                          "items": {}
+                                        },
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "function"
+                                          ],
+                                          "properties": {
+                                            "function": {
+                                              "const": "dbgenerated"
+                                            },
+                                            "rawDbValue": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "sourceName": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Unsupported property",
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "pattern": "Unsupported.+"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "nullable": {
+                                      "type": "boolean",
+                                      "default": false
+                                    },
+                                    "sourceName": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Enum property",
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "required": [
+                                        "$ref"
+                                      ],
+                                      "properties": {
+                                        "$ref": {
+                                          "oneOf": [
+                                            {
+                                              "type": "string",
+                                              "format": "uri-format",
+                                              "pattern": "#(/schemas/.+)?/enums/.+"
+                                            }
+                                          ]
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "nullable": {
+                                          "type": "boolean",
+                                          "default": false
+                                        },
+                                        "default": {
+                                          "type": "object",
+                                          "required": [
+                                            "value"
+                                          ],
+                                          "properties": {
+                                            "value": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        "sourceName": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "description": "Enum array property",
+                                      "required": [
+                                        "type",
+                                        "items"
+                                      ],
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "array"
+                                        },
+                                        "items": {
+                                          "type": "object",
+                                          "required": [
+                                            "$ref"
+                                          ],
+                                          "properties": {
+                                            "$ref": {
+                                              "oneOf": [
+                                                {
+                                                  "type": "string",
+                                                  "format": "uri-format",
+                                                  "pattern": "#(/schemas/.+)?/enums/.+"
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "nullable": {
+                                          "type": "boolean",
+                                          "default": false
+                                        },
+                                        "sourceName": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Relation oneToN property",
+                                  "required": [
+                                    "type",
+                                    "items"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "array"
+                                    },
+                                    "items": {
+                                      "type": "object",
+                                      "required": [
+                                        "$ref"
+                                      ],
+                                      "properties": {
+                                        "$ref": {
+                                          "oneOf": [
+                                            {
+                                              "type": "string",
+                                              "format": "uri-format",
+                                              "pattern": "#(/schemas/.+)?/objects/.+"
+                                            }
+                                          ]
+                                        },
+                                        "relation": {
+                                          "type": "object",
+                                          "properties": {
+                                            "name": {
+                                              "type": "string"
+                                            },
+                                            "attrKey": {
+                                              "type": [
+                                                "string",
+                                                "array"
+                                              ],
+                                              "items": {
+                                                "type": "string"
+                                              },
+                                              "minItems": 1
+                                            },
+                                            "foreignAttrKey": {
+                                              "type": [
+                                                "string",
+                                                "array"
+                                              ],
+                                              "items": {
+                                                "type": "string"
+                                              },
+                                              "minItems": 1
+                                            },
+                                            "sourceName": {
+                                              "type": "string"
+                                            },
+                                            "onUpdate": {
+                                              "type": "string",
+                                              "enum": [
+                                                "Cascade",
+                                                "Restrict",
+                                                "NoAction",
+                                                "SetNull",
+                                                "SetDefault"
+                                              ]
+                                            },
+                                            "onDelete": {
+                                              "type": "string",
+                                              "enum": [
+                                                "Cascade",
+                                                "Restrict",
+                                                "NoAction",
+                                                "SetNull",
+                                                "SetDefault"
+                                              ]
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "nullable": {
+                                      "type": "boolean",
+                                      "default": false
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "description": "Relation property",
+                                  "required": [
+                                    "$ref"
+                                  ],
+                                  "properties": {
+                                    "$ref": {
+                                      "oneOf": [
+                                        {
+                                          "type": "string",
+                                          "format": "uri-format",
+                                          "pattern": "#(/schemas/.+)?/objects/.+"
+                                        }
+                                      ]
+                                    },
+                                    "relation": {
+                                      "type": "object",
+                                      "properties": {
+                                        "name": {
+                                          "type": "string"
+                                        },
+                                        "attrKey": {
+                                          "type": [
+                                            "string",
+                                            "array"
+                                          ],
+                                          "items": {
+                                            "type": "string"
+                                          },
+                                          "minItems": 1
+                                        },
+                                        "foreignAttrKey": {
+                                          "type": [
+                                            "string",
+                                            "array"
+                                          ],
+                                          "items": {
+                                            "type": "string"
+                                          },
+                                          "minItems": 1
+                                        },
+                                        "sourceName": {
+                                          "type": "string"
+                                        },
+                                        "onUpdate": {
+                                          "type": "string",
+                                          "enum": [
+                                            "Cascade",
+                                            "Restrict",
+                                            "NoAction",
+                                            "SetNull",
+                                            "SetDefault"
+                                          ]
+                                        },
+                                        "onDelete": {
+                                          "type": "string",
+                                          "enum": [
+                                            "Cascade",
+                                            "Restrict",
+                                            "NoAction",
+                                            "SetNull",
+                                            "SetDefault"
+                                          ]
+                                        }
+                                      }
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "nullable": {
+                                      "type": "boolean",
+                                      "default": false
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}
