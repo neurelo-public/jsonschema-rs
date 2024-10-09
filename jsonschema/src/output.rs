@@ -173,18 +173,6 @@ impl<'a> From<PartialApplication<'a>> for BasicOutput<'a> {
             } => {
                 let mut all_errors = VecDeque::new();
 
-                for error in errors {
-                    all_errors.insert(
-                        0,
-                        OutputUnit::<ErrorDescription>::error(
-                            error.schema_path.clone(),
-                            error.instance_path.clone(),
-                            location.absolute_keyword_location.clone(),
-                            error.into(),
-                        ),
-                    )
-                }
-
                 for child_result in child_results {
                     let child_output: BasicOutput = child_result.into();
 
@@ -192,6 +180,15 @@ impl<'a> From<PartialApplication<'a>> for BasicOutput<'a> {
                         BasicOutput::Invalid(errors) => all_errors.extend(errors),
                         BasicOutput::Valid(_) => {}
                     }
+                }
+
+                for error in errors {
+                    all_errors.push_back(OutputUnit::<ErrorDescription>::error(
+                        error.schema_path.clone(),
+                        error.instance_path.clone(),
+                        location.absolute_keyword_location.clone(),
+                        error.into(),
+                    ))
                 }
 
                 BasicOutput::Invalid(all_errors)
