@@ -110,7 +110,8 @@ fn test_draft(_server_address: &str, test_case: TestCase) {
             test_case.schema,
             test_case.instance,
         );
-        let output = compiled.apply(&test_case.instance).basic();
+        let output = compiled.apply(&test_case.instance);
+        let output = output.basic();
         assert!(
             output.is_valid(),
             "Test case should be valid via basic output:\nGroup: {}\nTest case: {}\nSchema: {}\nInstance: {}\nError: {:?}",
@@ -151,7 +152,8 @@ fn test_draft(_server_address: &str, test_case: TestCase) {
             test_case.schema,
             test_case.instance,
         );
-        let output = compiled.apply(&test_case.instance).basic();
+        let output = compiled.apply(&test_case.instance);
+        let output = output.basic();
         assert!(
             !output.is_valid(),
             "Test case should be invalid via basic output:\nGroup: {}\nTest case: {}\nSchema: {}\nInstance: {}",
